@@ -1,5 +1,6 @@
 package dev.emi.emi.search;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -18,6 +19,8 @@ import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.data.EmiAlias;
 import dev.emi.emi.data.EmiData;
+import dev.emi.emi.fork.EmiForkApi;
+import dev.emi.emi.fork.EmiSearchExtension;
 import dev.emi.emi.registry.EmiStackList;
 import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.EmiReloadLog;
@@ -138,8 +141,10 @@ public class EmiSearch {
 	}
 
 	public static void search(String query) {
+		// [Wynn EMI fork] let extensions take their terms on the client thread before searching
+		EmiForkApi.PreparedSearch prepared = EmiForkApi.prepareSearch(query);
 		synchronized (EmiSearch.class) {
-			SearchWorker worker = new SearchWorker(query, EmiScreenManager.getSearchSource());
+			SearchWorker worker = new SearchWorker(prepared, EmiScreenManager.getSearchSource());
 			currentWorker = worker;
 			
 			searchThread = new Thread(worker);
@@ -255,9 +260,12 @@ public class EmiSearch {
 	private static class SearchWorker implements Runnable {
 		private final String query;
 		private final List<? extends EmiIngredient> source;
+		// [Wynn EMI fork]
+		private final List<EmiSearchExtension.Prepared> extensions;
 
-		public SearchWorker(String query, List<? extends EmiIngredient> source) {
-			this.query = query;
+		public SearchWorker(EmiForkApi.PreparedSearch prepared, List<? extends EmiIngredient> source) {
+			this.query = prepared.remainingQuery();
+			this.extensions = prepared.extensions();
 			this.source = source;
 		}
 
@@ -266,7 +274,7 @@ public class EmiSearch {
 			try {
 				CompiledQuery compiled = new CompiledQuery(query);
 				compiledQuery = compiled;
-				if (compiled.isEmpty()) {
+				if (compiled.isEmpty() && extensions.isEmpty()) {
 					apply(this, source);
 					return;
 				}
@@ -283,14 +291,40 @@ public class EmiSearch {
 					// TODO properly support ingredients?
 					if (ess.size() == 1) {
 						EmiStack es = ess.get(0);
-						if (compiled.test(es)) {
+						if (compiled.test(es) && testExtensions(es)) {
 							stacks.add(stack);
 						}
 					}
 				}
+				sortByExtensions(stacks);
 				apply(this, List.copyOf(stacks));
 			} catch (Exception e) {
 				EmiLog.error("Error when attempting to search:", e);
+			}
+		}
+
+		// [Wynn EMI fork]
+		private boolean testExtensions(EmiStack stack) {
+			for (EmiSearchExtension.Prepared extension : extensions) {
+				if (!extension.test(stack)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		// [Wynn EMI fork] the last extension that asks for an order wins; stable sort keeps EMI's order for ties
+		private void sortByExtensions(List<EmiIngredient> stacks) {
+			Comparator<EmiStack> sorter = null;
+			for (EmiSearchExtension.Prepared extension : extensions) {
+				Comparator<EmiStack> s = extension.sorter();
+				if (s != null) {
+					sorter = s;
+				}
+			}
+			if (sorter != null) {
+				Comparator<EmiStack> finalSorter = sorter;
+				stacks.sort((a, b) -> finalSorter.compare(a.getEmiStacks().get(0), b.getEmiStacks().get(0)));
 			}
 		}
 	}
