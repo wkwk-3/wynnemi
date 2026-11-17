@@ -1,4 +1,6 @@
-# WEI (Wynn Enough Items)
+# WEI
+
+Wynn Enough Items
 
 JEI / REI / EMI のような、Wynncraft 用のアイテムビューアー MOD です。Wynntils が持っているアイテムデータを、同梱の EMI（フォーク）の画面で一覧・検索し、入手元や使い道まで調べられます。Fabric 用のクライアント MOD です。
 

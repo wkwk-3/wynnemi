@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "wei",
   "version": "${version}",
-  "name": "WEI (Wynn Enough Items)",
+  "name": "WEI",
   "description": "Wynn Enough Items: a JEI/EMI-style item viewer for Wynncraft. Browse and search every item, and look up where it comes from and what it is used for. Uses Wynntils data and a bundled EMI fork.",
   "authors": [
     "wkwk"
