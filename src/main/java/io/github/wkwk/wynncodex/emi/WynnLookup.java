@@ -1,4 +1,4 @@
-package io.github.wkwk.wynnemi.emi;
+package io.github.wkwk.wynncodex.emi;
 
 import java.util.List;
 import java.util.Map;

@@ -141,7 +141,7 @@ public class EmiSearch {
 	}
 
 	public static void search(String query) {
-		// [Wynn EMI fork] let extensions take their terms on the client thread before searching
+		// [WynnCodex fork] let extensions take their terms on the client thread before searching
 		EmiForkApi.PreparedSearch prepared = EmiForkApi.prepareSearch(query);
 		synchronized (EmiSearch.class) {
 			SearchWorker worker = new SearchWorker(prepared, EmiScreenManager.getSearchSource());
@@ -260,7 +260,7 @@ public class EmiSearch {
 	private static class SearchWorker implements Runnable {
 		private final String query;
 		private final List<? extends EmiIngredient> source;
-		// [Wynn EMI fork]
+		// [WynnCodex fork]
 		private final List<EmiSearchExtension.Prepared> extensions;
 
 		public SearchWorker(EmiForkApi.PreparedSearch prepared, List<? extends EmiIngredient> source) {
@@ -303,7 +303,7 @@ public class EmiSearch {
 			}
 		}
 
-		// [Wynn EMI fork]
+		// [WynnCodex fork]
 		private boolean testExtensions(EmiStack stack) {
 			for (EmiSearchExtension.Prepared extension : extensions) {
 				if (!extension.test(stack)) {
@@ -313,7 +313,7 @@ public class EmiSearch {
 			return true;
 		}
 
-		// [Wynn EMI fork] the last extension that asks for an order wins; stable sort keeps EMI's order for ties
+		// [WynnCodex fork] the last extension that asks for an order wins; stable sort keeps EMI's order for ties
 		private void sortByExtensions(List<EmiIngredient> stacks) {
 			Comparator<EmiStack> sorter = null;
 			for (EmiSearchExtension.Prepared extension : extensions) {

@@ -1,4 +1,4 @@
-package io.github.wkwk.wynnemi.util;
+package io.github.wkwk.wynncodex.util;
 
 import java.util.Locale;
 import java.util.regex.Pattern;

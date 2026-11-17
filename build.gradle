@@ -35,7 +35,7 @@ dependencies {
     // runClient で試したい場合は modLocalRuntime に変える。
     modCompileOnly libJar("wynntils")
     modCompileOnly libJar("emi")
-    // フォークした EMI を jar の中に同梱する（プレイヤーは Wynn EMI の jar 1 つを入れればよい）
+    // フォークした EMI を jar の中に同梱する（プレイヤーは WynnCodex の jar 1 つを入れればよい）
     include libJar("emi")
 }
 

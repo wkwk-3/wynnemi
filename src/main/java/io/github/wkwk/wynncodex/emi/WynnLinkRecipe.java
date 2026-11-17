@@ -1,4 +1,4 @@
-package io.github.wkwk.wynnemi.emi;
+package io.github.wkwk.wynncodex.emi;
 
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;

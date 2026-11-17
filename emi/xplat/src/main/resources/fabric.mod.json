@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "emi",
   "version": "${version}",
-  "name": "Wynn EMI Core (EMI fork)",
-  "description": "EMI fork used by Wynn EMI. Based on PF-EMI (ProjectFlint) and EMI by Emi. Adds search extension hooks.",
+  "name": "WynnCodex EMI (EMI fork)",
+  "description": "EMI fork bundled with WynnCodex. Based on PF-EMI (ProjectFlint) and EMI by Emi. Adds search extension hooks.",
   "authors": [
     "Emi"
   ],
@@ -51,6 +51,6 @@
     "minecraft": "1.21.11"
   },
   "provides": [
-    "wynnemi_emi"
+    "wynncodex_emi"
   ]
 }

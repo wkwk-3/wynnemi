@@ -1,4 +1,4 @@
-package io.github.wkwk.wynnemi.emi;
+package io.github.wkwk.wynncodex.emi;
 
 import com.wynntils.models.profession.type.ProfessionType;
 import com.wynntils.models.wynnitem.type.ItemObtainType;
@@ -9,11 +9,11 @@ import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
-import io.github.wkwk.wynnemi.WynnEmiClient;
-import io.github.wkwk.wynnemi.WynnEmiConfig;
-import io.github.wkwk.wynnemi.data.WynnCatalog;
-import io.github.wkwk.wynnemi.data.WynnDataWatcher;
-import io.github.wkwk.wynnemi.util.Names;
+import io.github.wkwk.wynncodex.WynnCodex;
+import io.github.wkwk.wynncodex.WynnCodexConfig;
+import io.github.wkwk.wynncodex.data.WynnCatalog;
+import io.github.wkwk.wynncodex.data.WynnDataWatcher;
+import io.github.wkwk.wynncodex.util.Names;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -30,7 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 @EmiEntrypoint
-public final class WynnEmiPlugin implements EmiPlugin {
+public final class WynnCodexEmiPlugin implements EmiPlugin {
     /** レベル順に並べる（WynnLinkRecipe の sortKey） */
     private static final Comparator<EmiRecipe> BY_SORT_KEY = Comparator.comparingInt(
             r -> r instanceof WynnLinkRecipe link ? link.sortKey() : 0);
@@ -44,7 +44,7 @@ public final class WynnEmiPlugin implements EmiPlugin {
     @Override
     public void register(EmiRegistry registry) {
         // このスレッドでは Wynntils に触れず、クライアントスレッドで作ったスナップショットだけを使う
-        WynnEmiConfig config = WynnEmiConfig.get();
+        WynnCodexConfig config = WynnCodexConfig.get();
         WynnCatalog catalog = WynnCatalog.current();
         String view = WynnDataWatcher.viewSignature();
         boolean onWynncraft = WynnDataWatcher.onWynncraft();
@@ -76,7 +76,7 @@ public final class WynnEmiPlugin implements EmiPlugin {
             for (ItemObtainType type : ItemObtainType.values()) {
                 WynnEmiStack icon = sources.typeStack(type);
                 EmiRecipeCategory category = new EmiRecipeCategory(
-                        WynnEmiClient.id("obtain/" + type.name().toLowerCase(Locale.ROOT)), icon);
+                        WynnCodex.id("obtain/" + type.name().toLowerCase(Locale.ROOT)), icon);
                 obtainCategories.put(type, category);
                 registry.addCategory(category);
                 // 作業台欄のアイコンを押すと、その種類で手に入る全アイテムが出る
@@ -87,10 +87,10 @@ public final class WynnEmiPlugin implements EmiPlugin {
         // 4. 製作素材は必要レベル順
         EmiStack craftingIcon = EmiStack.of(Items.CRAFTING_TABLE);
         EmiRecipeCategory craftingCategory = new EmiRecipeCategory(
-                WynnEmiClient.id("crafting_use"), craftingIcon, craftingIcon, BY_SORT_KEY);
+                WynnCodex.id("crafting_use"), craftingIcon, craftingIcon, BY_SORT_KEY);
         EmiStack gatheringIcon = EmiStack.of(Items.IRON_PICKAXE);
         EmiRecipeCategory gatheringCategory = new EmiRecipeCategory(
-                WynnEmiClient.id("gathering"), gatheringIcon, gatheringIcon, BY_SORT_KEY);
+                WynnCodex.id("gathering"), gatheringIcon, gatheringIcon, BY_SORT_KEY);
         if (config.showProfessionRecipes) {
             registry.addCategory(craftingCategory);
             registry.addCategory(gatheringCategory);
@@ -99,14 +99,14 @@ public final class WynnEmiPlugin implements EmiPlugin {
         // 5. 必要クエスト
         EmiStack questIcon = EmiStack.of(Items.WRITABLE_BOOK);
         EmiRecipeCategory questCategory = new EmiRecipeCategory(
-                WynnEmiClient.id("quest_required"), questIcon, questIcon, BY_SORT_KEY);
+                WynnCodex.id("quest_required"), questIcon, questIcon, BY_SORT_KEY);
         // 2. 未鑑定ボックスの中身（レベル順）
         EmiStack boxIcon = EmiStack.of(Items.CHEST);
         EmiRecipeCategory boxCategory = new EmiRecipeCategory(
-                WynnEmiClient.id("gear_box"), boxIcon, boxIcon, BY_SORT_KEY);
+                WynnCodex.id("gear_box"), boxIcon, boxIcon, BY_SORT_KEY);
         // 6. セット装備
         EmiStack setIcon = EmiStack.of(Items.ARMOR_STAND);
-        EmiRecipeCategory setCategory = new EmiRecipeCategory(WynnEmiClient.id("set"), setIcon);
+        EmiRecipeCategory setCategory = new EmiRecipeCategory(WynnCodex.id("set"), setIcon);
         if (config.showGearRecipes) {
             registry.addCategory(questCategory);
             registry.addCategory(boxCategory);
@@ -177,7 +177,7 @@ public final class WynnEmiPlugin implements EmiPlugin {
                     Identifier id = uniqueId(usedRecipeIds, "/quest_required/" + item.getId().getPath());
                     if (id != null) {
                         registry.addRecipe(new WynnLinkRecipe(questCategory, id, quest, item,
-                                Component.translatable("wynnemi.recipe.requires_quest", entry.requiredQuest()),
+                                Component.translatable("wynncodex.recipe.requires_quest", entry.requiredQuest()),
                                 false, entry.level()));
                     }
                 }
@@ -188,7 +188,7 @@ public final class WynnEmiPlugin implements EmiPlugin {
                     WynnEmiStack box = boxStacks.computeIfAbsent(family.key(), k -> WynnEmiStack.ofVirtual(
                             k, new ItemStack(Items.CHEST),
                             family.displayName().copy().withStyle(ChatFormatting.GRAY),
-                            List.of(Component.translatable("wynnemi.tooltip.box").withStyle(ChatFormatting.DARK_GRAY))));
+                            List.of(Component.translatable("wynncodex.tooltip.box").withStyle(ChatFormatting.DARK_GRAY))));
                     Identifier id = uniqueId(usedRecipeIds, "/gear_box/" + item.getId().getPath());
                     if (id != null) {
                         WynnLinkRecipe recipe = new WynnLinkRecipe(boxCategory, id, box, item,
@@ -252,11 +252,11 @@ public final class WynnEmiPlugin implements EmiPlugin {
     }
 
     private static Component levelCaption(int level) {
-        return level > 0 ? Component.translatable("wynnemi.recipe.level", level) : null;
+        return level > 0 ? Component.translatable("wynncodex.recipe.level", level) : null;
     }
 
     private static Identifier uniqueId(Set<Identifier> used, String path) {
-        Identifier id = WynnEmiClient.id(Names.idPath(path));
+        Identifier id = WynnCodex.id(Names.idPath(path));
         return used.add(id) ? id : null;
     }
 }

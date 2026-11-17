@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import dev.emi.emi.api.stack.EmiStack;
 
 /**
- * [Wynn EMI fork] Lets a mod take over part of the search query, filter the index with its own
+ * [WynnCodex fork] Lets a mod take over part of the search query, filter the index with its own
  * logic, and optionally reorder the results.
  *
  * <p>{@link #prepare(String)} is called on the client thread every time a search starts, so it may

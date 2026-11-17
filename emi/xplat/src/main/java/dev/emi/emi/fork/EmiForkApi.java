@@ -9,8 +9,8 @@ import org.jetbrains.annotations.ApiStatus;
 import dev.emi.emi.runtime.EmiLog;
 
 /**
- * [Wynn EMI fork] Entry point for APIs that only exist in this fork.
- * Mods using it should depend on the "wynnemi_emi" mod id, which only this fork provides.
+ * [WynnCodex fork] Entry point for APIs that only exist in this fork.
+ * Mods using it should depend on the "wynncodex_emi" mod id, which only this fork provides.
  */
 public final class EmiForkApi {
 	private static final List<EmiSearchExtension> SEARCH_EXTENSIONS = new CopyOnWriteArrayList<>();

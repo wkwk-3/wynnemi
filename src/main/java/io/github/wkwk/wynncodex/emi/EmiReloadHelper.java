@@ -1,6 +1,6 @@
-package io.github.wkwk.wynnemi.emi;
+package io.github.wkwk.wynncodex.emi;
 
-import io.github.wkwk.wynnemi.WynnEmiClient;
+import io.github.wkwk.wynncodex.WynnCodex;
 import java.lang.reflect.Method;
 
 /**
@@ -24,7 +24,7 @@ public final class EmiReloadHelper {
                 reloadMethod.invoke(null);
             }
         } catch (Throwable t) {
-            WynnEmiClient.LOGGER.warn("Could not trigger EMI reload; rejoin the world to refresh EMI", t);
+            WynnCodex.LOGGER.warn("Could not trigger EMI reload; rejoin the world to refresh EMI", t);
         }
     }
 }

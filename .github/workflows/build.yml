@@ -47,5 +47,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wynnemi
+          name: wynncodex
           path: build/libs/*.jar

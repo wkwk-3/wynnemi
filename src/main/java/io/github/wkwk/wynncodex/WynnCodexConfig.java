@@ -1,4 +1,4 @@
-package io.github.wkwk.wynnemi;
+package io.github.wkwk.wynncodex;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -9,10 +9,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 
-/** config/wynnemi.json。変更後は /wynnemi reload で反映される。 */
-public final class WynnEmiConfig {
+/** config/wynncodex.json。変更後は /wynncodex reload で反映される。 */
+public final class WynnCodexConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static volatile WynnEmiConfig instance = new WynnEmiConfig();
+    private static volatile WynnCodexConfig instance = new WynnCodexConfig();
 
     /** Wynncraft 接続中は EMI からバニラのアイテムとレシピを隠す */
     public boolean hideVanillaOnWynncraft = true;
@@ -27,28 +27,28 @@ public final class WynnEmiConfig {
     /** EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる */
     public boolean syncFavoritesToWynntils = true;
 
-    public static WynnEmiConfig get() {
+    public static WynnCodexConfig get() {
         return instance;
     }
 
     public static void load() {
-        Path path = FabricLoader.getInstance().getConfigDir().resolve("wynnemi.json");
-        WynnEmiConfig loaded = null;
+        Path path = FabricLoader.getInstance().getConfigDir().resolve("wynncodex.json");
+        WynnCodexConfig loaded = null;
         if (Files.exists(path)) {
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                loaded = GSON.fromJson(reader, WynnEmiConfig.class);
+                loaded = GSON.fromJson(reader, WynnCodexConfig.class);
             } catch (Exception e) {
-                WynnEmiClient.LOGGER.warn("Failed to read {}, using defaults", path, e);
+                WynnCodex.LOGGER.warn("Failed to read {}, using defaults", path, e);
             }
         }
-        if (loaded == null) loaded = new WynnEmiConfig();
+        if (loaded == null) loaded = new WynnCodexConfig();
         instance = loaded;
 
         // 足りない項目を補って書き戻す
         try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
             GSON.toJson(loaded, writer);
         } catch (Exception e) {
-            WynnEmiClient.LOGGER.warn("Failed to write {}", path, e);
+            WynnCodex.LOGGER.warn("Failed to write {}", path, e);
         }
     }
 

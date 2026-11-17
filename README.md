@@ -1,6 +1,6 @@
-# Wynn EMI
+# WynnCodex
 
-Wynntils が持っている Wynncraft のアイテムデータを EMI（EMI Port Forward）の画面に表示する Fabric 用クライアント MOD です。
+Wynncraft のアイテム図鑑 MOD です。Wynntils が持っているアイテムデータを、同梱の EMI（フォーク）の画面で一覧・検索し、入手元や使い道まで調べられます。Fabric 用のクライアント MOD です。
 
 - 対応: Minecraft 1.21.11 / Fabric
 - 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、Fabric API
@@ -28,7 +28,7 @@ Wynntils が持っている Wynncraft のアイテムデータを EMI（EMI Port
 
 Wynncraft に接続している間は、EMI からバニラのアイテムとレシピを隠します。
 
-## 設定 `config/wynnemi.json`
+## 設定 `config/wynncodex.json`
 
 | 項目 | 既定 | 内容 |
 |---|---|---|
@@ -43,23 +43,23 @@ Wynncraft に接続している間は、EMI からバニラのアイテムとレ
 
 | コマンド | 内容 |
 |---|---|
-| `/wynnemi reload` | 設定を読み直して EMI だけ再読み込み（アイテム一覧は作り直さない） |
-| `/wynnemi rebuild` | Wynntils のデータからアイテム一覧を作り直す |
+| `/wynncodex reload` | 設定を読み直して EMI だけ再読み込み（アイテム一覧は作り直さない） |
+| `/wynncodex rebuild` | Wynntils のデータからアイテム一覧を作り直す |
 
 ## しくみと注意点
 
 - **データの読み込みタイミング**: Wynntils は起動後にアイテムデータを非同期でダウンロードします。Wynntils のダウンロード完了イベントを受けて一覧を作り直し、EMI を再読み込みします（保険として件数も監視）。プレイヤーのクラスが変わったときも、説明文が変わるので作り直します。
 - **作り直しの負荷**: 1 ティックあたり 4 ミリ秒ずつに分けて作るので、ゲームは止まりません。完了まで数秒かかることがあります。
-- **一部の失敗**: 一部の種類が読めなかった場合も、読めた分は表示したうえで 5 秒、15 秒、1 分、5 分後に作り直しを再試行します。それでも駄目なら、データが変わるか `/wynnemi rebuild` まで待ちます。
+- **一部の失敗**: 一部の種類が読めなかった場合も、読めた分は表示したうえで 5 秒、15 秒、1 分、5 分後に作り直しを再試行します。それでも駄目なら、データが変わるか `/wynncodex rebuild` まで待ちます。
 - **設定・接続状態の変化**: 一覧は作り直さず、EMI の再読み込みだけを行います。EMI がワールド参加時などに自分で最新の内容を読み込んでいれば、重ねて再読み込みはしません。
 - **EMI の再読み込み**: 公開 API に無いため内部クラスをリフレクションで呼びます。失敗した場合はワールドに入り直してください。
 - **説明文**: Wynntils のガイド用アイテムは `getTooltipLines()` のオーバーライドで説明文を作るため、EMI 標準の `EmiStack.of()` だと消えます。一覧を作るときに説明文を一度だけ取得して保存し、専用の `WynnEmiStack` で使います。EMI の別スレッドからは Wynntils に一切触れません。Wynntils の独自ツールチップ枠（レアリティ色の枠）は EMI の描画では再現されません。
 - **同一判定**: Wynncraft のアイテムはバニラのアイテムを流用しているため、EMI 標準ではまとめられてしまいます。アイテムごとに固有のキーを持たせています。
-- **お気に入り**: EMI のお気に入りに登録でき、キーで保存されます（Wynntils 側でアイテム名が変わると外れます）。Wynntils への連動は EMI → Wynntils の一方向で、このMODが追加したものだけを記録して（`config/wynnemi-favorites.json`）、EMI から外したときにそれだけを外します。もともと Wynntils でお気に入りにしていたものには触れません。EMI の内部クラスを読んでいるため、EMI の更新で使えなくなったらこの機能だけ止まります。
+- **お気に入り**: EMI のお気に入りに登録でき、キーで保存されます（Wynntils 側でアイテム名が変わると外れます）。Wynntils への連動は EMI → Wynntils の一方向で、このMODが追加したものだけを記録して（`config/wynncodex-favorites.json`）、EMI から外したときにそれだけを外します。もともと Wynntils でお気に入りにしていたものには触れません。EMI の内部クラスを読んでいるため、EMI の更新で使えなくなったらこの機能だけ止まります。
 - **未鑑定ボックス**: 候補は「装備の種類 × レアリティ」ごとに全レベル分を並べ、手持ちのボックスで R を押すとそのレベル範囲の最初の候補へ移動します（候補の条件は Wynntils のアイテム推測と同じ）。
 - **手持ちのアイテム**: Wynntils がアイテムを認識できたものだけが対象です。クラフト品など、Wynntils のデータに無いアイテムは EMI 標準の動きになります。
 - **入手元データの限界**: Wynntils のデータは「種類＋名前」だけで、ドロップ率・座標・必要条件はありません。クラウドソースのため「入手方法不明」も多めです。
-- **Wynntils の内部クラスに依存**: `Guide*ItemStack` は Wynntils の公開 API ではないため、Wynntils の更新で壊れることがあります。種類ごとに例外を捕まえているので、1 種類が壊れても他は表示されます（ログに `WynnEMI` で警告）。
+- **Wynntils の内部クラスに依存**: `Guide*ItemStack` は Wynntils の公開 API ではないため、Wynntils の更新で壊れることがあります。種類ごとに例外を捕まえているので、1 種類が壊れても他は表示されます（ログに `WynnCodex` で警告）。
 - **PF-EMI**: [bostonstuddard/PF-EMI](https://github.com/bostonstuddard/PF-EMI) の `1.21.11` ブランチ（mod ID `emi`、EMI 1.1.23 ベース）の API に合わせています。
 
 ## ビルド
@@ -73,4 +73,4 @@ push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）�
 1. `libs/wynntils*.jar` に Wynntils の Fabric 版（1.21.11）を置く
 2. `cd emi && ./gradlew :fabric:remapJar` で EMI のフォークをビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/emi.jar` としてコピー
 3. ルートで `./gradlew build`
-4. `build/libs/wynnemi-<version>.jar` を mods フォルダへ（EMI は同梱済み）
+4. `build/libs/wynncodex-<version>.jar` を mods フォルダへ（EMI は同梱済み）

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "wynnemi",
+  "id": "wynncodex",
   "version": "${version}",
-  "name": "Wynn EMI",
-  "description": "Shows Wynncraft items from Wynntils in EMI, with where-to-obtain and profession-use recipes.",
+  "name": "WynnCodex",
+  "description": "An in-game Wynncraft item codex: browse, search and look up where every item comes from, powered by Wynntils data and a bundled EMI fork.",
   "authors": [
     "wkwk"
   ],
@@ -11,10 +11,10 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "io.github.wkwk.wynnemi.WynnEmiClient"
+      "io.github.wkwk.wynncodex.WynnCodex"
     ],
     "emi": [
-      "io.github.wkwk.wynnemi.emi.WynnEmiPlugin"
+      "io.github.wkwk.wynncodex.emi.WynnCodexEmiPlugin"
     ]
   },
   "depends": {
@@ -23,9 +23,13 @@
     "java": ">=21",
     "fabric-api": "*",
     "wynntils": "*",
-    "wynnemi_emi": "*"
+    "wynncodex_emi": "*"
   },
   "mixins": [
-    "wynnemi.mixins.json"
-  ]
+    "wynncodex.mixins.json"
+  ],
+  "contact": {
+    "sources": "https://github.com/wkwk-3/wynnemi",
+    "issues": "https://github.com/wkwk-3/wynnemi/issues"
+  }
 }
