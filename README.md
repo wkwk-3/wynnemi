@@ -71,6 +71,6 @@ push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）�
 ### 手元でビルド
 
 1. `libs/wynntils*.jar` に Wynntils の Fabric 版（1.21.11）を置く
-2. `cd emi && ./gradlew :fabric:remapJar` で EMI のフォークをビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/emi.jar` としてコピー
+2. `cd emi && ./gradlew :fabric:remapJar` で EMI のフォークをビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/wynncodex-emi-bundled.jar` としてコピー
 3. ルートで `./gradlew build`
 4. `build/libs/wynncodex-<version>.jar` を mods フォルダへ（EMI は同梱済み）

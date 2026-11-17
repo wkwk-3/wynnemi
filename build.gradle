@@ -12,6 +12,9 @@ base {
 
 repositories {
     mavenCentral()
+    // libs/wynncodex-emi-bundled.jar（emi/ のビルド結果）を座標で参照するため。
+    // Loom の同梱（include）はファイルを直接は受け付けない
+    flatDir { dirs "libs" }
 }
 
 // Wynntils は Maven で配布されていないため libs/ に置いた jar を参照する。
@@ -34,9 +37,10 @@ dependencies {
     // 実行時は mods フォルダの本体を使うので compileOnly。
     // runClient で試したい場合は modLocalRuntime に変える。
     modCompileOnly libJar("wynntils")
-    modCompileOnly libJar("emi")
-    // フォークした EMI を jar の中に同梱する（プレイヤーは WynnCodex の jar 1 つを入れればよい）
-    include libJar("emi")
+    // フォークした EMI。コンパイルに使い、jar の中に同梱する（プレイヤーは WynnCodex の jar 1 つを入れればよい）
+    libJar("wynncodex-emi-bundled")
+    modCompileOnly "local:wynncodex-emi:bundled"
+    include "local:wynncodex-emi:bundled"
 }
 
 processResources {
