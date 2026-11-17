@@ -3,17 +3,14 @@ package io.github.wkwk.wynnemi.emi;
 import io.github.wkwk.wynnemi.WynnEmiClient;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import dev.emi.emi.api.stack.EmiStack;
+import io.github.wkwk.wynnemi.util.Names;
 
 /**
  * Wynncraft のアイテム（または「入手元」「職業」などの仮想アイテム）を表す EMI のスタック。
@@ -30,26 +27,28 @@ public final class WynnEmiStack extends EmiStack {
     private final Identifier id;
     private final ItemStack stack;
     private final Component name;
-    private final List<Component> extraTooltip;
-    private final boolean useStackTooltip;
+    /** 不変の説明文。EMI は別スレッドの検索インデックス作成でも呼ぶので、Wynntils には問い合わせない */
+    private final List<Component> tooltip;
 
-    private WynnEmiStack(String key, ItemStack stack, Component name, List<Component> extraTooltip, boolean useStackTooltip) {
+    private WynnEmiStack(String key, ItemStack stack, Component name, List<Component> tooltip) {
         this.key = key;
         this.id = WynnEmiClient.id(toPath(key));
         this.stack = stack;
         this.name = name;
-        this.extraTooltip = extraTooltip;
-        this.useStackTooltip = useStackTooltip;
+        this.tooltip = tooltip;
     }
 
-    /** Wynntils のガイド用アイテム。説明文はアイテム自身が作る。 */
-    public static WynnEmiStack ofItem(String key, ItemStack stack, Component name) {
-        return new WynnEmiStack(key, stack, name, List.of(), true);
+    /** Wynntils のガイド用アイテム。説明文はカタログ構築時に取ったもの。 */
+    public static WynnEmiStack ofItem(String key, ItemStack stack, Component name, List<Component> tooltip) {
+        return new WynnEmiStack(key, stack, name, List.copyOf(tooltip));
     }
 
     /** 入手元や職業などの仮想アイテム。説明文は name + extraTooltip。 */
     public static WynnEmiStack ofVirtual(String key, ItemStack icon, Component name, List<Component> extraTooltip) {
-        return new WynnEmiStack(key, icon, name, List.copyOf(extraTooltip), false);
+        List<Component> lines = new ArrayList<>(1 + extraTooltip.size());
+        lines.add(name);
+        lines.addAll(extraTooltip);
+        return new WynnEmiStack(key, icon, name, List.copyOf(lines));
     }
 
     public String wynnKey() {
@@ -58,7 +57,7 @@ public final class WynnEmiStack extends EmiStack {
 
     @Override
     public EmiStack copy() {
-        WynnEmiStack copy = new WynnEmiStack(key, stack, name, extraTooltip, useStackTooltip);
+        WynnEmiStack copy = new WynnEmiStack(key, stack, name, tooltip);
         copy.amount = this.amount;
         copy.chance = this.chance;
         copy.comparison = this.comparison;
@@ -94,19 +93,7 @@ public final class WynnEmiStack extends EmiStack {
 
     @Override
     public List<Component> getTooltipText() {
-        if (!useStackTooltip) {
-            List<Component> lines = new ArrayList<>(1 + extraTooltip.size());
-            lines.add(name);
-            lines.addAll(extraTooltip);
-            return lines;
-        }
-        try {
-            Minecraft mc = Minecraft.getInstance();
-            return stack.getTooltipLines(
-                    Item.TooltipContext.EMPTY, mc.isSameThread() ? mc.player : null, TooltipFlag.NORMAL);
-        } catch (Throwable t) {
-            return List.of(name);
-        }
+        return tooltip;
     }
 
     @Override
@@ -131,9 +118,8 @@ public final class WynnEmiStack extends EmiStack {
         }
     }
 
-    /** Identifier に使えない文字を置き換える。重複はキー側で防いでいるので、衝突回避にハッシュを足す。 */
+    /** Identifier に使えない文字を置き換えると別のキーが同じになり得るので、元のキーのハッシュを足す。 */
     private static String toPath(String key) {
-        String cleaned = key.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9/._-]", "_");
-        return cleaned + "_" + Integer.toHexString(key.hashCode());
+        return Names.idPath(key) + "_" + Integer.toHexString(key.hashCode());
     }
 }

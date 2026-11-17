@@ -32,5 +32,6 @@
   "wynnemi.tooltip.obtain_type": "Obtain method",
   "wynnemi.tooltip.source": "Press U to see items from here",
   "wynnemi.tooltip.profession": "Profession",
-  "wynnemi.command.reload": "Wynn EMI: rebuilding item list and reloading EMI"
+  "wynnemi.command.reload": "Wynn EMI: reloaded config and refreshing EMI",
+  "wynnemi.command.rebuild": "Wynn EMI: rebuilding the item list from Wynntils data"
 }

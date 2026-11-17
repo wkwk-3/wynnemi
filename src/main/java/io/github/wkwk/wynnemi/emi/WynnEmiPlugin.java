@@ -1,7 +1,6 @@
 package io.github.wkwk.wynnemi.emi;
 
 import com.wynntils.models.profession.type.ProfessionType;
-import com.wynntils.models.wynnitem.type.ItemObtainInfo;
 import com.wynntils.models.wynnitem.type.ItemObtainType;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiInitRegistry;
@@ -13,6 +12,7 @@ import io.github.wkwk.wynnemi.WynnEmiClient;
 import io.github.wkwk.wynnemi.WynnEmiConfig;
 import io.github.wkwk.wynnemi.data.WynnCatalog;
 import io.github.wkwk.wynnemi.data.WynnDataWatcher;
+import io.github.wkwk.wynnemi.util.Names;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -32,15 +32,17 @@ public final class WynnEmiPlugin implements EmiPlugin {
 
     @Override
     public void register(EmiRegistry registry) {
-        WynnDataWatcher.markEmiRegistered();
-
+        // このスレッドでは Wynntils に触れず、クライアントスレッドで作ったスナップショットだけを使う
         WynnEmiConfig config = WynnEmiConfig.get();
         WynnCatalog catalog = WynnCatalog.current();
+        String view = WynnDataWatcher.viewSignature();
+        boolean onWynncraft = WynnDataWatcher.onWynncraft();
+        WynnDataWatcher.markEmiRegistered(catalog, view);
 
         WynnEmiStackSerializer.clear();
 
         // 4. Wynncraft にいる間はバニラのアイテム・レシピを隠す（無効化は全プラグインの後に適用される）
-        if (config.hideVanillaOnWynncraft && catalog.onWynncraft()) {
+        if (config.hideVanillaOnWynncraft && onWynncraft) {
             registry.removeEmiStacks(stack -> !(stack instanceof WynnEmiStack));
             registry.removeRecipes(recipe -> !(recipe instanceof WynnLinkRecipe));
         }
@@ -78,7 +80,7 @@ public final class WynnEmiPlugin implements EmiPlugin {
 
         for (WynnCatalog.Entry entry : catalog.entries()) {
             // 1〜3. アイテム一覧への登録（説明文つき・個別に区別される）
-            WynnEmiStack item = WynnEmiStack.ofItem(entry.key(), entry.stack(), entry.displayName());
+            WynnEmiStack item = WynnEmiStack.ofItem(entry.key(), entry.stack(), entry.displayName(), entry.tooltip());
             registry.addEmiStack(item);
             WynnEmiStackSerializer.remember(item);
             // 色付き・アイコン付きの名前でも普通の名前で検索できるように
@@ -86,16 +88,16 @@ public final class WynnEmiPlugin implements EmiPlugin {
 
             // 5. 入手元 → アイテム
             if (config.showObtainRecipes) {
-                for (ItemObtainInfo info : entry.obtainInfo()) {
-                    EmiRecipeCategory category = obtainCategories.get(info.sourceType());
+                for (WynnCatalog.ObtainSnapshot info : entry.obtain()) {
+                    EmiRecipeCategory category = obtainCategories.get(info.type());
                     if (category == null) continue;
                     WynnEmiStack source = sources.sourceStack(info);
                     Identifier id = uniqueId(usedRecipeIds,
-                            "/obtain/" + info.sourceType().name().toLowerCase(Locale.ROOT) + "/" + item.getId().getPath()
+                            "/obtain/" + info.type().name().toLowerCase(Locale.ROOT) + "/" + item.getId().getPath()
                                     + "/" + Integer.toHexString(source.wynnKey().hashCode()));
                     if (id == null) continue;
                     registry.addRecipe(new WynnLinkRecipe(category, id, source, item,
-                            info.name().map(Component::literal).orElse(null)));
+                            info.caption() == null ? null : Component.literal(info.caption())));
                 }
             }
 
@@ -141,7 +143,7 @@ public final class WynnEmiPlugin implements EmiPlugin {
     }
 
     private static Identifier uniqueId(Set<Identifier> used, String path) {
-        Identifier id = WynnEmiClient.id(path.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9/._-]", "_"));
+        Identifier id = WynnEmiClient.id(Names.idPath(path));
         return used.add(id) ? id : null;
     }
 }

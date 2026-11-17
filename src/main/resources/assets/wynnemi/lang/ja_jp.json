@@ -32,5 +32,6 @@
   "wynnemi.tooltip.obtain_type": "入手方法",
   "wynnemi.tooltip.source": "U でここで手に入るアイテムを表示",
   "wynnemi.tooltip.profession": "職業",
-  "wynnemi.command.reload": "Wynn EMI: アイテム一覧を作り直してEMIを再読み込みします"
+  "wynnemi.command.reload": "Wynn EMI: 設定を読み直してEMIを再読み込みします",
+  "wynnemi.command.rebuild": "Wynn EMI: Wynntilsのデータからアイテム一覧を作り直します"
 }

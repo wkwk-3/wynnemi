@@ -1,0 +1,33 @@
+package io.github.wkwk.wynnemi.util;
+
+import java.util.Locale;
+import java.util.regex.Pattern;
+import net.minecraft.ChatFormatting;
+
+/** 名前・ID の整形（正規表現は使い回す） */
+public final class Names {
+    /** Wynncraft のフォントのアイコン（私用領域の文字） */
+    private static final Pattern PRIVATE_USE = Pattern.compile("[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]");
+    public static final Pattern WHITESPACE = Pattern.compile("\\s+");
+    private static final Pattern ID_UNSAFE = Pattern.compile("[^a-z0-9/._-]");
+    private static final Pattern NON_ALNUM = Pattern.compile("[^\\p{L}\\p{N}]+");
+
+    private Names() {}
+
+    /** 色コードとアイコン文字を除き、空白をまとめる */
+    public static String strip(String s) {
+        String stripped = ChatFormatting.stripFormatting(s);
+        if (stripped == null) return "";
+        return WHITESPACE.matcher(PRIVATE_USE.matcher(stripped).replaceAll("")).replaceAll(" ").trim();
+    }
+
+    /** 表記揺れ（大文字小文字・空白・記号・色コード）をまとめるためのキー */
+    public static String normalize(String name) {
+        return NON_ALNUM.matcher(strip(name).toLowerCase(Locale.ROOT)).replaceAll(" ").trim();
+    }
+
+    /** Identifier のパスに使えない文字を置き換える */
+    public static String idPath(String s) {
+        return ID_UNSAFE.matcher(s.toLowerCase(Locale.ROOT)).replaceAll("_");
+    }
+}

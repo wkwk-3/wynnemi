@@ -1,21 +1,22 @@
 package io.github.wkwk.wynnemi.emi;
 
-import com.wynntils.core.components.Models;
 import com.wynntils.models.profession.type.ProfessionType;
-import com.wynntils.models.wynnitem.type.ItemObtainInfo;
 import com.wynntils.models.wynnitem.type.ItemObtainType;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
-import org.jetbrains.annotations.Nullable;
+import io.github.wkwk.wynnemi.data.WynnCatalog;
+import io.github.wkwk.wynnemi.util.Names;
 
-/** 「入手元」と「職業」の仮想アイテムを作って使い回す（同じ入手元は1つのスタックにまとめる）。 */
+/**
+ * 「入手元」と「職業」の仮想アイテムを作って使い回す（同じ入手元は1つのスタックにまとめる）。
+ * EMI のスレッドで動くので、Wynntils のモデルには触れず、カタログのスナップショットだけを使う。
+ */
 final class WynnSources {
     private final Map<String, WynnEmiStack> sources = new HashMap<>();
     private final Map<ProfessionType, WynnEmiStack> professions = new HashMap<>();
@@ -29,14 +30,13 @@ final class WynnSources {
                 List.of(Component.translatable("wynnemi.tooltip.obtain_type").withStyle(ChatFormatting.GRAY))));
     }
 
-    /** 具体的な入手元（例: Dungeon Rain: Decrepit Sewers）。名前が無いものは種類のスタックを返す。 */
-    WynnEmiStack sourceStack(ItemObtainInfo info) {
-        ItemObtainType type = info.sourceType();
-        String name = displayName(info);
+    /** 具体的な入手元（例: Decrepit Sewers）。名前が無いものは種類のスタックを返す。 */
+    WynnEmiStack sourceStack(WynnCatalog.ObtainSnapshot info) {
+        ItemObtainType type = info.type();
+        String name = info.sourceName();
         if (name == null) return typeStack(type);
 
-        String normalized = normalize(name);
-        return sources.computeIfAbsent("source/" + type.name() + "/" + normalized, key -> WynnEmiStack.ofVirtual(
+        return sources.computeIfAbsent("source/" + type.name() + "/" + Names.normalize(name), key -> WynnEmiStack.ofVirtual(
                 key,
                 new ItemStack(iconFor(type)),
                 Component.literal(name).withStyle(ChatFormatting.YELLOW),
@@ -59,35 +59,6 @@ final class WynnSources {
 
     Iterable<WynnEmiStack> allProfessionStacks() {
         return professions.values();
-    }
-
-    /** Wynntils のツールチップと同じ考え方で、具体名を出す価値があるものだけ名前を返す。 */
-    private static @Nullable String displayName(ItemObtainInfo info) {
-        if (info.name().isEmpty()) return null;
-        ItemObtainType type = info.sourceType();
-        if (type == ItemObtainType.GUILD) return null;
-
-        String name = info.name().get().replaceAll("\\s+", " ").trim();
-        if (name.isEmpty()) return null;
-        if (type == ItemObtainType.LOOTRUN && name.equals("Lootrun Rewards")) return null;
-
-        if (type == ItemObtainType.QUEST) {
-            try {
-                var quest = Models.Quest.getQuestInfo(name);
-                if (quest != null && quest.displayName() != null && !quest.displayName().isBlank()) {
-                    name = quest.displayName();
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-        return name;
-    }
-
-    /** 表記揺れ（大文字小文字・空白・色コード）をまとめるためのキー */
-    static String normalize(String name) {
-        String stripped = ChatFormatting.stripFormatting(name);
-        if (stripped == null) stripped = name;
-        return stripped.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
     }
 
     private static ItemLike iconFor(ItemObtainType type) {
