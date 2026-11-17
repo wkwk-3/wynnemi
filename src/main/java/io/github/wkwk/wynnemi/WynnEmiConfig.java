@@ -22,6 +22,10 @@ public final class WynnEmiConfig {
     public boolean showObtainRecipes = true;
     /** 素材→使える製作職業、採集職業→素材 のレシピを登録する */
     public boolean showProfessionRecipes = true;
+    /** 必要クエスト・未鑑定ボックスの中身・セット装備のレシピを登録する */
+    public boolean showGearRecipes = true;
+    /** EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる */
+    public boolean syncFavoritesToWynntils = true;
 
     public static WynnEmiConfig get() {
         return instance;
@@ -49,7 +53,9 @@ public final class WynnEmiConfig {
     }
 
     String signature() {
-        return hideVanillaOnWynncraft + "," + showSourcesInIndex + "," + showObtainRecipes + "," + showProfessionRecipes;
+        // EMI の表示に関わる項目だけ（お気に入りの連動は表示に関係しない）
+        return hideVanillaOnWynncraft + "," + showSourcesInIndex + "," + showObtainRecipes + "," + showProfessionRecipes
+                + "," + showGearRecipes;
     }
 
     public static String currentSignature() {

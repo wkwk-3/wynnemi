@@ -33,5 +33,13 @@
   "wynnemi.tooltip.source": "Press U to see items from here",
   "wynnemi.tooltip.profession": "Profession",
   "wynnemi.command.reload": "Wynn EMI: reloaded config and refreshing EMI",
-  "wynnemi.command.rebuild": "Wynn EMI: rebuilding the item list from Wynntils data"
+  "wynnemi.command.rebuild": "Wynn EMI: rebuilding the item list from Wynntils data",
+  "emi.category.wynnemi.quest_required": "Required Quest",
+  "emi.category.wynnemi.gear_box": "Unidentified Box Contents",
+  "emi.category.wynnemi.set": "Gear Set",
+  "wynnemi.box.name": "Unidentified %s %s",
+  "wynnemi.tooltip.box": "Press R to see what it can contain",
+  "wynnemi.tooltip.set_pieces": "%s pieces:",
+  "wynnemi.recipe.level": "Lv. %s",
+  "wynnemi.recipe.requires_quest": "Requires: %s"
 }

@@ -26,6 +26,17 @@ public final class Names {
         return NON_ALNUM.matcher(strip(name).toLowerCase(Locale.ROOT)).replaceAll(" ").trim();
     }
 
+    /** MASTERY_TOME → Mastery Tome */
+    public static String titleCase(String enumName) {
+        StringBuilder sb = new StringBuilder();
+        for (String word : enumName.toLowerCase(Locale.ROOT).split("_")) {
+            if (word.isEmpty()) continue;
+            if (!sb.isEmpty()) sb.append(' ');
+            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return sb.toString();
+    }
+
     /** Identifier のパスに使えない文字を置き換える */
     public static String idPath(String s) {
         return ID_UNSAFE.matcher(s.toLowerCase(Locale.ROOT)).replaceAll("_");

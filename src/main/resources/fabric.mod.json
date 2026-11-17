@@ -4,12 +4,18 @@
   "version": "${version}",
   "name": "Wynn EMI",
   "description": "Shows Wynncraft items from Wynntils in EMI, with where-to-obtain and profession-use recipes.",
-  "authors": ["wkwk"],
+  "authors": [
+    "wkwk"
+  ],
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["io.github.wkwk.wynnemi.WynnEmiClient"],
-    "emi": ["io.github.wkwk.wynnemi.emi.WynnEmiPlugin"]
+    "client": [
+      "io.github.wkwk.wynnemi.WynnEmiClient"
+    ],
+    "emi": [
+      "io.github.wkwk.wynnemi.emi.WynnEmiPlugin"
+    ]
   },
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",
@@ -18,5 +24,8 @@
     "fabric-api": "*",
     "wynntils": "*",
     "emi": "*"
-  }
+  },
+  "mixins": [
+    "wynnemi.mixins.json"
+  ]
 }

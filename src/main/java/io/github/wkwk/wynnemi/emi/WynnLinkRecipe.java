@@ -15,8 +15,11 @@ import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 「A → B」を表示するだけのレシピ。入手方法（入手元 → アイテム）、
- * 製作の使い道（素材 → 職業）、採集（職業 → 素材）に使う。
+ * 「A → B」を表示するだけのレシピ。入手方法（入手元 → アイテム）、製作の使い道（素材 → 職業）、
+ * 採集（職業 → 素材）、必要クエスト（クエスト → 装備）、未鑑定ボックス（ボックス → 候補）に使う。
+ *
+ * <p>EMI は「R = 出力に含むレシピ」「U = 入力に含むレシピ」で引くので、見た目の向きとは別に
+ * 引き方の向きを指定できるようにしている（ボックスで R を押したら中身の候補を出したい、など）。
  */
 final class WynnLinkRecipe implements EmiRecipe {
     private static final int WIDTH = 134;
@@ -24,16 +27,34 @@ final class WynnLinkRecipe implements EmiRecipe {
 
     private final EmiRecipeCategory category;
     private final Identifier id;
-    private final EmiStack input;
-    private final EmiStack output;
+    private final EmiStack left;
+    private final EmiStack right;
     private final @Nullable Component caption;
+    private final boolean lookupReversed;
+    private final int sortKey;
 
-    WynnLinkRecipe(EmiRecipeCategory category, Identifier id, EmiStack input, EmiStack output, @Nullable Component caption) {
+    /** 左 → 右。R（右で引く）・U（左で引く） */
+    WynnLinkRecipe(EmiRecipeCategory category, Identifier id, EmiStack left, EmiStack right, @Nullable Component caption) {
+        this(category, id, left, right, caption, false, 0);
+    }
+
+    /**
+     * @param lookupReversed true なら、左で R・右で U を引く（見た目は左 → 右のまま）
+     * @param sortKey カテゴリ内の並び順（小さい順）
+     */
+    WynnLinkRecipe(EmiRecipeCategory category, Identifier id, EmiStack left, EmiStack right, @Nullable Component caption,
+            boolean lookupReversed, int sortKey) {
         this.category = category;
         this.id = id;
-        this.input = input;
-        this.output = output;
+        this.left = left;
+        this.right = right;
         this.caption = caption;
+        this.lookupReversed = lookupReversed;
+        this.sortKey = sortKey;
+    }
+
+    int sortKey() {
+        return sortKey;
     }
 
     @Override
@@ -48,12 +69,12 @@ final class WynnLinkRecipe implements EmiRecipe {
 
     @Override
     public List<EmiIngredient> getInputs() {
-        return List.of(input);
+        return List.of(lookupReversed ? right : left);
     }
 
     @Override
     public List<EmiStack> getOutputs() {
-        return List.of(output);
+        return List.of(lookupReversed ? left : right);
     }
 
     @Override
@@ -74,9 +95,9 @@ final class WynnLinkRecipe implements EmiRecipe {
 
     @Override
     public void addWidgets(WidgetHolder widgets) {
-        widgets.addSlot(input, 24, 0);
+        widgets.addSlot(left, 24, 0);
         widgets.addTexture(EmiTexture.EMPTY_ARROW, 55, 1);
-        widgets.addSlot(output, 92, 0).recipeContext(this);
+        widgets.addSlot(right, 92, 0).recipeContext(this);
 
         if (caption != null) {
             Font font = Minecraft.getInstance().font;

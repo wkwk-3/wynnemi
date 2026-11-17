@@ -1,6 +1,7 @@
 package io.github.wkwk.wynnemi;
 
 import io.github.wkwk.wynnemi.data.WynnDataWatcher;
+import io.github.wkwk.wynnemi.data.WynnFavoritesSync;
 import io.github.wkwk.wynnemi.data.WynntilsDownloadListener;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -28,6 +29,7 @@ public final class WynnEmiClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             WynntilsDownloadListener.registerOnce();
             WynnDataWatcher.tick();
+            WynnFavoritesSync.tick();
         });
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> dispatcher.register(

@@ -29,9 +29,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import com.wynntils.models.gear.type.SetBonus;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -55,6 +58,26 @@ public final class WynnCatalog {
             /** レシピ画面に出す元の名前 */
             @Nullable String caption) {}
 
+    /** 未鑑定ボックスの系統（装備の種類 × レアリティ）。中身の候補はこの系統と必要レベルで決まる */
+    public record BoxFamily(String key, Component displayName) {}
+
+    /** アイテムごとの追加情報（カタログ構築時に Wynntils から取り出しておく） */
+    public record Extra(
+            @Nullable List<ItemObtainInfo> obtain,
+            @Nullable List<ProfessionType> craftProfessions,
+            @Nullable ProfessionType gatherProfession,
+            /** 並び替えと表示に使うレベル（無ければ 0） */
+            int level,
+            /** 検索用の追加の語（レアリティ・種類・レベル・クラスなど） */
+            @Nullable String aliases,
+            /** Wynntils のお気に入りに使う名前（Wynntils の getName() と同じもの） */
+            @Nullable String favoriteName,
+            @Nullable BoxFamily boxFamily,
+            /** 装備に必要なクエスト（Wynntils の生の名前） */
+            @Nullable String requiredQuest) {
+        static final Extra NONE = new Extra(null, null, null, 0, null, null, null, null);
+    }
+
     public record Entry(
             String key,
             String group,
@@ -65,14 +88,29 @@ public final class WynnCatalog {
             List<Component> tooltip,
             List<ObtainSnapshot> obtain,
             List<ProfessionType> craftProfessions,
-            @Nullable ProfessionType gatherProfession) {}
+            @Nullable ProfessionType gatherProfession,
+            int level,
+            @Nullable String aliases,
+            @Nullable String favoriteName,
+            @Nullable BoxFamily boxFamily,
+            /** 表示用に解決済みのクエスト名 */
+            @Nullable String requiredQuest) {}
 
-    private static volatile WynnCatalog current = new WynnCatalog(List.of());
+    /** セット装備。メンバーはカタログのキー */
+    public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
+
+    private static volatile WynnCatalog current = new WynnCatalog(List.of(), List.of());
 
     private final List<Entry> entries;
+    private final List<SetSnapshot> sets;
 
-    private WynnCatalog(List<Entry> entries) {
+    private WynnCatalog(List<Entry> entries, List<SetSnapshot> sets) {
         this.entries = entries;
+        this.sets = sets;
+    }
+
+    public List<SetSnapshot> sets() {
+        return sets;
     }
 
     public static WynnCatalog current() {
@@ -139,16 +177,32 @@ public final class WynnCatalog {
         private final Set<String> keys = new HashSet<>();
         private final Set<String> failedGroups = new LinkedHashSet<>();
         private final Map<String, String> questNames = new HashMap<>();
+        private final List<SetSnapshot> sets = new ArrayList<>();
 
         Build() {
+            // 入手元は API の情報と有志のデータを合わせたもの（Wynntils のツールチップと同じ）を使う
             group("gear", () -> Models.Gear.getAllGearInfos()
-                    .map(g -> (Runnable) () -> add("gear", g.name(), new GuideGearItemStack(g),
-                            g.metaInfo().obtainInfo(), List.of(), null))
+                    .map(g -> (Runnable) () -> {
+                        List<ItemObtainInfo> obtain = Models.Gear.getObtainInfo(g);
+                        int level = g.requirements().level();
+                        add("gear", g.name(), new GuideGearItemStack(g), new Extra(
+                                obtain, null, null, level,
+                                gearAliases(g.tier().getName(), g.type().name(),
+                                        g.requirements().classType().map(Enum::name).orElse(null), level),
+                                g.name(),
+                                canBeInBox(g.metaInfo().preIdentified(), obtain)
+                                        ? boxFamily(g.type().name(), g.tier().name(), g.tier().getName())
+                                        : null,
+                                g.requirements().quest().filter(q -> !q.isBlank()).orElse(null)));
+                    })
                     .toList());
 
             group("ingredient", () -> Models.Ingredient.getAllIngredientInfos()
-                    .map(i -> (Runnable) () -> add("ingredient", i.name(), new GuideIngredientItemStack(i),
-                            i.obtainInfo(), i.professions(), null))
+                    .map(i -> (Runnable) () -> add("ingredient", i.name(), new GuideIngredientItemStack(i), new Extra(
+                            Models.Ingredient.getObtainInfo(i), i.professions(), null, i.level(),
+                            "ingredient lv" + i.level() + " lv." + i.level() + " " + "*".repeat(Math.max(0, i.tier()))
+                                    + " t" + i.tier() + professionWords(i.professions()),
+                            i.name(), null, null)))
                     .toList());
 
             group("material", () -> Models.Profession.getAllMaterialInfos()
@@ -156,24 +210,31 @@ public final class WynnCatalog {
                         for (int tier = 1; tier <= 3; tier++) {
                             int t = tier;
                             out.accept(() -> add("material", m.name() + " T" + t, new GuideMaterialItemStack(m, t),
-                                    List.of(), List.of(), m.professionType()));
+                                    new Extra(null, null, m.professionType(), m.level(),
+                                            "material lv" + m.level() + " lv." + m.level() + " t" + t + " "
+                                                    + m.professionType().getDisplayName().toLowerCase(Locale.ROOT),
+                                            m.name(), null, null)));
                         }
                     })
                     .toList());
 
             group("tool", () -> Models.Profession.getAllGatheringToolInfos()
                     .map(t -> (Runnable) () -> add("tool", t.name(), new GuideGatheringToolItemStack(t),
-                            List.of(), List.of(), null))
+                            new Extra(null, null, null, t.level(), "tool lv" + t.level(), t.name(), null, null)))
                     .toList());
 
             group("charm", () -> Models.Rewards.getAllCharmInfos()
-                    .map(c -> (Runnable) () -> add("charm", c.name(), new GuideCharmItemStack(c),
-                            c.metaInfo().obtainInfo(), List.of(), null))
+                    .map(c -> (Runnable) () -> add("charm", c.name(), new GuideCharmItemStack(c), new Extra(
+                            Models.Rewards.getCharmObtainInfo(c), null, null, c.requirements().level(),
+                            "charm " + c.tier().getName().toLowerCase(Locale.ROOT) + " lv" + c.requirements().level(),
+                            c.name(), null, null)))
                     .toList());
 
             group("tome", () -> Models.Rewards.getAllTomeInfos()
-                    .map(t -> (Runnable) () -> add("tome", t.name(), new GuideTomeItemStack(t),
-                            t.metaInfo().obtainInfo(), List.of(), null))
+                    .map(t -> (Runnable) () -> add("tome", t.name(), new GuideTomeItemStack(t), new Extra(
+                            Models.Rewards.getTomeObtainInfo(t), null, null, t.requirements().level(),
+                            "tome " + t.tier().getName().toLowerCase(Locale.ROOT) + " lv" + t.requirements().level(),
+                            t.name(), null, null)))
                     .toList());
 
             group("aspect", () -> Models.Aspect.getAllAspectInfos()
@@ -181,7 +242,10 @@ public final class WynnCatalog {
                         for (int tier = 1; tier <= a.effects().size(); tier++) {
                             int t = tier;
                             out.accept(() -> add("aspect", a.name() + " T" + t, new GuideAspectItemStack(a, t),
-                                    List.of(), List.of(), null));
+                                    new Extra(null, null, null, 0,
+                                            "aspect t" + t + " " + a.gearTier().getName().toLowerCase(Locale.ROOT)
+                                                    + (a.classType() == null ? "" : " " + a.classType().name().toLowerCase(Locale.ROOT)),
+                                            a.name(), null, null)));
                         }
                     })
                     .toList());
@@ -236,6 +300,11 @@ public final class WynnCatalog {
                 }
                 return list;
             });
+
+            // セット装備（メンバーのキーは装備のキーと同じ形）
+            group("set", () -> Models.Set.getSets().stream()
+                    .map(set -> (Runnable) () -> addSet(set.name(), set.items(), set.bonuses()))
+                    .toList());
         }
 
         /** 期限まで作業を進める。全部終わったら true。 */
@@ -256,7 +325,7 @@ public final class WynnCatalog {
         }
 
         WynnCatalog result() {
-            return new WynnCatalog(List.copyOf(entries));
+            return new WynnCatalog(List.copyOf(entries), List.copyOf(sets));
         }
 
         int size() {
@@ -294,11 +363,10 @@ public final class WynnCatalog {
         }
 
         private void addUnnamed(String group, ItemStack stack) {
-            add(group, null, stack, List.of(), List.of(), null);
+            add(group, null, stack, Extra.NONE);
         }
 
-        private void add(String group, @Nullable String plainName, ItemStack stack, @Nullable List<ItemObtainInfo> obtain,
-                @Nullable List<ProfessionType> craft, @Nullable ProfessionType gather) {
+        private void add(String group, @Nullable String plainName, ItemStack stack, Extra extra) {
             List<Component> tooltip = tooltipOf(stack);
             Component display = !tooltip.isEmpty() && !tooltip.get(0).getString().isBlank()
                     ? tooltip.get(0)
@@ -314,10 +382,55 @@ public final class WynnCatalog {
                 key = group + "/" + plain + "#" + n++;
             }
 
+            String favoriteName = extra.favoriteName() != null ? extra.favoriteName() : plain;
+            String quest = extra.requiredQuest() == null ? null : resolveQuest(extra.requiredQuest());
             entries.add(new Entry(key, group, stack, display, plain, tooltip,
-                    snapshotObtain(obtain),
-                    craft == null ? List.of() : List.copyOf(craft),
-                    gather));
+                    snapshotObtain(extra.obtain()),
+                    extra.craftProfessions() == null ? List.of() : List.copyOf(extra.craftProfessions()),
+                    extra.gatherProfession(),
+                    extra.level(),
+                    extra.aliases(),
+                    favoriteName,
+                    extra.boxFamily(),
+                    quest));
+        }
+
+        private void addSet(String name, List<String> itemNames, Map<Integer, SetBonus> bonuses) {
+            List<String> members = new ArrayList<>();
+            for (String item : itemNames) {
+                members.add("gear/" + item);
+            }
+            List<Component> tooltip = new ArrayList<>();
+            tooltip.add(Component.literal(name + " Set").withStyle(ChatFormatting.GREEN));
+            bonuses.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(e -> {
+                        SetBonus bonus = e.getValue();
+                        if (bonus.major().isEmpty() && bonus.minor().isEmpty()) return;
+                        tooltip.add(Component.translatable("wynnemi.tooltip.set_pieces", e.getKey())
+                                .withStyle(ChatFormatting.GRAY));
+                        for (String major : bonus.major()) {
+                            tooltip.add(Component.literal("  " + Names.strip(major)).withStyle(ChatFormatting.AQUA));
+                        }
+                        bonus.minor().forEach((stat, value) -> tooltip.add(Component.literal(
+                                        "  " + (value >= 0 ? "+" : "") + value + stat.getUnit().getDisplayName()
+                                                + " " + stat.getDisplayName())
+                                .withStyle(value >= 0 ? ChatFormatting.GREEN : ChatFormatting.RED)));
+                    });
+            sets.add(new SetSnapshot(name, List.copyOf(members), List.copyOf(tooltip)));
+        }
+
+        private String resolveQuest(String raw) {
+            return questNames.computeIfAbsent(raw, n -> {
+                try {
+                    var quest = Models.Quest.getQuestInfo(n);
+                    if (quest != null && quest.displayName() != null && !quest.displayName().isBlank()) {
+                        return quest.displayName();
+                    }
+                } catch (Throwable ignored) {
+                }
+                return n;
+            });
         }
 
         private static List<Component> tooltipOf(ItemStack stack) {
@@ -344,19 +457,46 @@ public final class WynnCatalog {
         private @Nullable String sourceNameOf(ItemObtainType type, String raw) {
             if (raw.isEmpty() || type == ItemObtainType.GUILD) return null;
             if (type == ItemObtainType.LOOTRUN && raw.equals("Lootrun Rewards")) return null;
-            if (type == ItemObtainType.QUEST) {
-                return questNames.computeIfAbsent(raw, n -> {
-                    try {
-                        var quest = Models.Quest.getQuestInfo(n);
-                        if (quest != null && quest.displayName() != null && !quest.displayName().isBlank()) {
-                            return quest.displayName();
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                    return n;
-                });
-            }
+            if (type == ItemObtainType.QUEST) return resolveQuest(raw);
             return raw;
         }
+    }
+
+    /** Wynntils の GearModel と同じ条件：鑑定済み固定でなく、ボックスで落ちる入手元がある */
+    private static boolean canBeInBox(boolean preIdentified, List<ItemObtainInfo> obtain) {
+        if (preIdentified || obtain == null) return false;
+        for (ItemObtainInfo info : obtain) {
+            if (info != null && ItemObtainType.BOXED_ITEMS.contains(info.sourceType())) return true;
+        }
+        return false;
+    }
+
+    /** 系統のキーは手持ちのボックス（GearBoxItem）からも同じ形で作れるようにする */
+    public static String boxFamilyKey(String gearTypeName, String gearTierName) {
+        return "box/" + gearTypeName + "/" + gearTierName;
+    }
+
+    private static BoxFamily boxFamily(String gearTypeName, String gearTierName, String tierDisplay) {
+        return new BoxFamily(boxFamilyKey(gearTypeName, gearTierName), Component.translatable(
+                "wynnemi.box.name", tierDisplay, Names.titleCase(gearTypeName)));
+    }
+
+    private static String gearAliases(String tier, String type, @Nullable String classType, int level) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(tier.toLowerCase(Locale.ROOT)).append(' ')
+                .append(type.toLowerCase(Locale.ROOT).replace('_', ' ')).append(' ')
+                .append("lv").append(level).append(" lv.").append(level);
+        if (classType != null) sb.append(' ').append(classType.toLowerCase(Locale.ROOT));
+        return sb.toString();
+    }
+
+    private static String professionWords(List<ProfessionType> professions) {
+        StringBuilder sb = new StringBuilder();
+        if (professions != null) {
+            for (ProfessionType p : professions) {
+                sb.append(' ').append(p.getDisplayName().toLowerCase(Locale.ROOT));
+            }
+        }
+        return sb.toString();
     }
 }
