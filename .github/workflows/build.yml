@@ -38,7 +38,7 @@ jobs:
           chmod +x gradlew
           ./gradlew :fabric:remapJar --stacktrace
           ls fabric/build/libs
-          cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/wynncodex-emi-bundled.jar
+          cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/wei-emi-bundled.jar
 
       - name: Build
         run: |
@@ -47,5 +47,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wynncodex
+          name: wei
           path: build/libs/*.jar

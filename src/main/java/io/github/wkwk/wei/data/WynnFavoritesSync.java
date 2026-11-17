@@ -1,13 +1,13 @@
-package io.github.wkwk.wynncodex.data;
+package io.github.wkwk.wei.data;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.wynntils.core.components.Services;
 import dev.emi.emi.runtime.EmiFavorite;
 import dev.emi.emi.runtime.EmiFavorites;
-import io.github.wkwk.wynncodex.WynnCodex;
-import io.github.wkwk.wynncodex.WynnCodexConfig;
-import io.github.wkwk.wynncodex.emi.WynnLookup;
+import io.github.wkwk.wei.Wei;
+import io.github.wkwk.wei.WeiConfig;
+import io.github.wkwk.wei.emi.WynnLookup;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +33,7 @@ import net.fabricmc.loader.api.FabricLoader;
  */
 public final class WynnFavoritesSync {
     private static final Gson GSON = new Gson();
-    private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("wynncodex-favorites.json");
+    private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("wei-favorites.json");
 
     private static final int MAX_FAILURES = 5;
 
@@ -46,7 +46,7 @@ public final class WynnFavoritesSync {
 
     public static void tick() {
         if (disabled || ++ticks % 20 != 0) return;
-        if (!WynnCodexConfig.get().syncFavoritesToWynntils) return;
+        if (!WeiConfig.get().syncFavoritesToWynntils) return;
         // Wynntils のデータと設定が読み込まれるまで待つ
         if (WynnCatalog.current().entries().isEmpty()) return;
         try {
@@ -77,7 +77,7 @@ public final class WynnFavoritesSync {
             // 起動直後の一時的な失敗は見逃し、続くなら EMI / Wynntils の内部が変わったとみてこの機能だけ止める
             if (++failures >= MAX_FAILURES) {
                 disabled = true;
-                WynnCodex.LOGGER.warn("Favorites sync to Wynntils disabled", t);
+                Wei.LOGGER.warn("Favorites sync to Wynntils disabled", t);
             }
         }
     }
@@ -88,7 +88,7 @@ public final class WynnFavoritesSync {
             Set<String> set = GSON.fromJson(reader, new TypeToken<Set<String>>() {}.getType());
             return set == null ? new HashSet<>() : new HashSet<>(set);
         } catch (Exception e) {
-            WynnCodex.LOGGER.warn("Failed to read {}", FILE, e);
+            Wei.LOGGER.warn("Failed to read {}", FILE, e);
             return new HashSet<>();
         }
     }
@@ -97,7 +97,7 @@ public final class WynnFavoritesSync {
         try (Writer writer = Files.newBufferedWriter(FILE, StandardCharsets.UTF_8)) {
             GSON.toJson(set, writer);
         } catch (Exception e) {
-            WynnCodex.LOGGER.warn("Failed to write {}", FILE, e);
+            Wei.LOGGER.warn("Failed to write {}", FILE, e);
         }
     }
 }

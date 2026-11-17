@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex.emi;
+package io.github.wkwk.wei.emi;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 保存するのはキーだけで、読み込み時に現在登録中のスタックから引く。
  */
 public final class WynnEmiStackSerializer implements EmiIngredientSerializer<WynnEmiStack> {
-    public static final String TYPE = "wynncodex";
+    public static final String TYPE = "wei";
     private static final Map<String, WynnEmiStack> REGISTERED = new ConcurrentHashMap<>();
 
     static void clear() {

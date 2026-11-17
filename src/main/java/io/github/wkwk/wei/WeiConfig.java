@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex;
+package io.github.wkwk.wei;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -9,10 +9,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 
-/** config/wynncodex.json。変更後は /wynncodex reload で反映される。 */
-public final class WynnCodexConfig {
+/** config/wei.json。変更後は /wei reload で反映される。 */
+public final class WeiConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static volatile WynnCodexConfig instance = new WynnCodexConfig();
+    private static volatile WeiConfig instance = new WeiConfig();
 
     /** Wynncraft 接続中は EMI からバニラのアイテムとレシピを隠す */
     public boolean hideVanillaOnWynncraft = true;
@@ -27,28 +27,28 @@ public final class WynnCodexConfig {
     /** EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる */
     public boolean syncFavoritesToWynntils = true;
 
-    public static WynnCodexConfig get() {
+    public static WeiConfig get() {
         return instance;
     }
 
     public static void load() {
-        Path path = FabricLoader.getInstance().getConfigDir().resolve("wynncodex.json");
-        WynnCodexConfig loaded = null;
+        Path path = FabricLoader.getInstance().getConfigDir().resolve("wei.json");
+        WeiConfig loaded = null;
         if (Files.exists(path)) {
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                loaded = GSON.fromJson(reader, WynnCodexConfig.class);
+                loaded = GSON.fromJson(reader, WeiConfig.class);
             } catch (Exception e) {
-                WynnCodex.LOGGER.warn("Failed to read {}, using defaults", path, e);
+                Wei.LOGGER.warn("Failed to read {}, using defaults", path, e);
             }
         }
-        if (loaded == null) loaded = new WynnCodexConfig();
+        if (loaded == null) loaded = new WeiConfig();
         instance = loaded;
 
         // 足りない項目を補って書き戻す
         try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
             GSON.toJson(loaded, writer);
         } catch (Exception e) {
-            WynnCodex.LOGGER.warn("Failed to write {}", path, e);
+            Wei.LOGGER.warn("Failed to write {}", path, e);
         }
     }
 

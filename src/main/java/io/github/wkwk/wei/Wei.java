@@ -1,10 +1,10 @@
-package io.github.wkwk.wynncodex;
+package io.github.wkwk.wei;
 
 import dev.emi.emi.fork.EmiForkApi;
-import io.github.wkwk.wynncodex.data.WynnDataWatcher;
-import io.github.wkwk.wynncodex.data.WynnFavoritesSync;
-import io.github.wkwk.wynncodex.data.WynntilsDownloadListener;
-import io.github.wkwk.wynncodex.emi.WynnSearchExtension;
+import io.github.wkwk.wei.data.WynnDataWatcher;
+import io.github.wkwk.wei.data.WynnFavoritesSync;
+import io.github.wkwk.wei.data.WynntilsDownloadListener;
+import io.github.wkwk.wei.emi.WynnSearchExtension;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -14,9 +14,9 @@ import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class WynnCodex implements ClientModInitializer {
-    public static final String MOD_ID = "wynncodex";
-    public static final Logger LOGGER = LoggerFactory.getLogger("WynnCodex");
+public final class Wei implements ClientModInitializer {
+    public static final String MOD_ID = "wei";
+    public static final Logger LOGGER = LoggerFactory.getLogger("WEI");
 
     public static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
@@ -24,7 +24,7 @@ public final class WynnCodex implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        WynnCodexConfig.load();
+        WeiConfig.load();
 
         // EMI の検索欄で Wynntils のフィルター（level:100-105 rarity:mythic sort:... など）を使えるようにする（フォークの API）
         EmiForkApi.registerSearchExtension(new WynnSearchExtension());
@@ -38,18 +38,18 @@ public final class WynnCodex implements ClientModInitializer {
         });
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> dispatcher.register(
-                ClientCommandManager.literal("wynncodex")
+                ClientCommandManager.literal("wei")
                         // 設定を読み直して EMI だけ再読み込み（アイテム一覧は作り直さない）
                         .then(ClientCommandManager.literal("reload").executes(ctx -> {
-                            WynnCodexConfig.load();
+                            WeiConfig.load();
                             WynnDataWatcher.requestEmiReload();
-                            ctx.getSource().sendFeedback(Component.translatable("wynncodex.command.reload"));
+                            ctx.getSource().sendFeedback(Component.translatable("wei.command.reload"));
                             return 1;
                         }))
                         // Wynntils のデータからアイテム一覧を作り直す
                         .then(ClientCommandManager.literal("rebuild").executes(ctx -> {
                             WynnDataWatcher.requestRebuild();
-                            ctx.getSource().sendFeedback(Component.translatable("wynncodex.command.rebuild"));
+                            ctx.getSource().sendFeedback(Component.translatable("wei.command.rebuild"));
                             return 1;
                         }))));
     }

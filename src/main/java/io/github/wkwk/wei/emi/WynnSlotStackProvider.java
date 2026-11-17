@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex.emi;
+package io.github.wkwk.wei.emi;
 
 import com.wynntils.core.components.Models;
 import com.wynntils.models.items.WynnItem;
@@ -12,9 +12,9 @@ import com.wynntils.models.items.items.game.TomeItem;
 import com.wynntils.models.items.properties.NamedItemProperty;
 import dev.emi.emi.api.EmiStackProvider;
 import dev.emi.emi.api.stack.EmiStackInteraction;
-import io.github.wkwk.wynncodex.data.WynnCatalog;
-import io.github.wkwk.wynncodex.mixin.AbstractContainerScreenAccessor;
-import io.github.wkwk.wynncodex.util.Names;
+import io.github.wkwk.wei.data.WynnCatalog;
+import io.github.wkwk.wei.mixin.AbstractContainerScreenAccessor;
+import io.github.wkwk.wei.util.Names;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.client.gui.screens.Screen;
@@ -35,7 +35,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
     public EmiStackInteraction getStackAt(Screen screen, int x, int y) {
         if (!(screen instanceof AbstractContainerScreen<?>)) return EmiStackInteraction.EMPTY;
         try {
-            Slot slot = ((AbstractContainerScreenAccessor) screen).wynncodex$getHoveredSlot();
+            Slot slot = ((AbstractContainerScreenAccessor) screen).wei$getHoveredSlot();
             if (slot == null) return EmiStackInteraction.EMPTY;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) return EmiStackInteraction.EMPTY;

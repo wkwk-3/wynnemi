@@ -1,8 +1,8 @@
-package io.github.wkwk.wynncodex.data;
+package io.github.wkwk.wei.data;
 
-import io.github.wkwk.wynncodex.WynnCodex;
-import io.github.wkwk.wynncodex.WynnCodexConfig;
-import io.github.wkwk.wynncodex.emi.EmiReloadHelper;
+import io.github.wkwk.wei.Wei;
+import io.github.wkwk.wei.WeiConfig;
+import io.github.wkwk.wei.emi.EmiReloadHelper;
 
 /**
  * Wynntils のデータと表示条件を見張り、必要なときだけカタログを作り直して EMI を再読み込みする。
@@ -100,7 +100,7 @@ public final class WynnDataWatcher {
 
     private static void checkView() {
         boolean wynn = WynnCatalog.isOnWynncraft();
-        String view = wynn + "|" + WynnCodexConfig.currentSignature();
+        String view = wynn + "|" + WeiConfig.currentSignature();
         if (view.equals(appliedViewSignature)) return;
 
         onWynncraft = wynn;
@@ -121,7 +121,7 @@ public final class WynnDataWatcher {
             done = build.step(System.nanoTime() + BUILD_BUDGET_NANOS);
         } catch (Throwable t) {
             // 個々の作業は Build 内で捕まえているので、ここに来るのは想定外
-            WynnCodex.LOGGER.error("Wynncraft item catalog build crashed", t);
+            Wei.LOGGER.error("Wynncraft item catalog build crashed", t);
             build = null;
             scheduleRetry();
             return;
@@ -138,9 +138,9 @@ public final class WynnDataWatcher {
         if (finished.complete()) {
             failedAttempts = 0;
             retryAtMillis = -1;
-            WynnCodex.LOGGER.info("Built Wynncraft item catalog: {} items", finished.size());
+            Wei.LOGGER.info("Built Wynncraft item catalog: {} items", finished.size());
         } else {
-            WynnCodex.LOGGER.warn("Built Wynncraft item catalog with missing groups {}: {} items",
+            Wei.LOGGER.warn("Built Wynncraft item catalog with missing groups {}: {} items",
                     finished.failedGroups(), finished.size());
             scheduleRetry();
         }
@@ -148,13 +148,13 @@ public final class WynnDataWatcher {
 
     private static void scheduleRetry() {
         if (failedAttempts >= RETRY_DELAYS_MS.length) {
-            WynnCodex.LOGGER.warn("Giving up retrying the Wynncraft item catalog until data changes or /wynncodex rebuild");
+            Wei.LOGGER.warn("Giving up retrying the Wynncraft item catalog until data changes or /wei rebuild");
             retryAtMillis = -1;
             return;
         }
         long delay = RETRY_DELAYS_MS[failedAttempts++];
         retryAtMillis = System.currentTimeMillis() + delay;
-        WynnCodex.LOGGER.info("Retrying the Wynncraft item catalog in {} s", delay / 1000);
+        Wei.LOGGER.info("Retrying the Wynncraft item catalog in {} s", delay / 1000);
     }
 
     /** Wynntils のダウンロード完了（または一部失敗）時。次の確認で作り直す。 */
@@ -163,17 +163,17 @@ public final class WynnDataWatcher {
         rebuildRequested = true;
     }
 
-    /** /wynncodex rebuild */
+    /** /wei rebuild */
     public static void requestRebuild() {
         failedAttempts = 0;
         rebuildRequested = true;
     }
 
-    /** /wynncodex reload（設定を読み直した後）。カタログは作り直さず EMI だけ再読み込み。 */
+    /** /wei reload（設定を読み直した後）。カタログは作り直さず EMI だけ再読み込み。 */
     public static void requestEmiReload() {
         boolean wynn = WynnCatalog.isOnWynncraft();
         onWynncraft = wynn;
-        appliedViewSignature = wynn + "|" + WynnCodexConfig.currentSignature();
+        appliedViewSignature = wynn + "|" + WeiConfig.currentSignature();
         emiReloadPending = true;
         // 設定が同じでも、明示的に頼まれたら必ず再読み込みする
         registeredViewSignature = null;

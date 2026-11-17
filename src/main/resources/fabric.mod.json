@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "wynncodex",
+  "id": "wei",
   "version": "${version}",
-  "name": "WynnCodex",
-  "description": "An in-game Wynncraft item codex: browse, search and look up where every item comes from, powered by Wynntils data and a bundled EMI fork.",
+  "name": "WEI (Wynn Enough Items)",
+  "description": "Wynn Enough Items: a JEI/EMI-style item viewer for Wynncraft. Browse and search every item, and look up where it comes from and what it is used for. Uses Wynntils data and a bundled EMI fork.",
   "authors": [
     "wkwk"
   ],
@@ -11,10 +11,10 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "io.github.wkwk.wynncodex.WynnCodex"
+      "io.github.wkwk.wei.Wei"
     ],
     "emi": [
-      "io.github.wkwk.wynncodex.emi.WynnCodexEmiPlugin"
+      "io.github.wkwk.wei.emi.WeiEmiPlugin"
     ]
   },
   "depends": {
@@ -23,10 +23,10 @@
     "java": ">=21",
     "fabric-api": "*",
     "wynntils": "*",
-    "wynncodex_emi": "*"
+    "wei_emi": "*"
   },
   "mixins": [
-    "wynncodex.mixins.json"
+    "wei.mixins.json"
   ],
   "contact": {
     "sources": "https://github.com/wkwk-3/wynnemi",

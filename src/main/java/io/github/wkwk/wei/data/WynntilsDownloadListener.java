@@ -1,8 +1,8 @@
-package io.github.wkwk.wynncodex.data;
+package io.github.wkwk.wei.data;
 
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.net.event.DownloadEvent;
-import io.github.wkwk.wynncodex.WynnCodex;
+import io.github.wkwk.wei.Wei;
 import net.neoforged.bus.api.SubscribeEvent;
 
 /**
@@ -22,7 +22,7 @@ public final class WynntilsDownloadListener {
         try {
             WynntilsMod.registerEventListener(new WynntilsDownloadListener());
         } catch (Throwable t) {
-            WynnCodex.LOGGER.warn("Could not listen to Wynntils download events; falling back to polling", t);
+            Wei.LOGGER.warn("Could not listen to Wynntils download events; falling back to polling", t);
         }
     }
 

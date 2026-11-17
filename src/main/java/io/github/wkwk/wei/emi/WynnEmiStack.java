@@ -1,6 +1,6 @@
-package io.github.wkwk.wynncodex.emi;
+package io.github.wkwk.wei.emi;
 
-import io.github.wkwk.wynncodex.WynnCodex;
+import io.github.wkwk.wei.Wei;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import dev.emi.emi.api.stack.EmiStack;
-import io.github.wkwk.wynncodex.util.Names;
+import io.github.wkwk.wei.util.Names;
 
 /**
  * Wynncraft のアイテム（または「入手元」「職業」などの仮想アイテム）を表す EMI のスタック。
@@ -32,7 +32,7 @@ public final class WynnEmiStack extends EmiStack {
 
     private WynnEmiStack(String key, ItemStack stack, Component name, List<Component> tooltip) {
         this.key = key;
-        this.id = WynnCodex.id(toPath(key));
+        this.id = Wei.id(toPath(key));
         this.stack = stack;
         this.name = name;
         this.tooltip = tooltip;
@@ -77,7 +77,7 @@ public final class WynnEmiStack extends EmiStack {
 
     @Override
     public Object getKey() {
-        return "wynncodex:" + key;
+        return "wei:" + key;
     }
 
     @Override

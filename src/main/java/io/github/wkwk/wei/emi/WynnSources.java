@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex.emi;
+package io.github.wkwk.wei.emi;
 
 import com.wynntils.models.profession.type.ProfessionType;
 import com.wynntils.models.wynnitem.type.ItemObtainType;
@@ -10,8 +10,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
-import io.github.wkwk.wynncodex.data.WynnCatalog;
-import io.github.wkwk.wynncodex.util.Names;
+import io.github.wkwk.wei.data.WynnCatalog;
+import io.github.wkwk.wei.util.Names;
 
 /**
  * 「入手元」と「職業」の仮想アイテムを作って使い回す（同じ入手元は1つのスタックにまとめる）。
@@ -27,7 +27,7 @@ final class WynnSources {
                 key,
                 new ItemStack(iconFor(type)),
                 Component.literal(type.getDisplayName()).withStyle(ChatFormatting.GOLD),
-                List.of(Component.translatable("wynncodex.tooltip.obtain_type").withStyle(ChatFormatting.GRAY))));
+                List.of(Component.translatable("wei.tooltip.obtain_type").withStyle(ChatFormatting.GRAY))));
     }
 
     /** 具体的な入手元（例: Decrepit Sewers）。名前が無いものは種類のスタックを返す。 */
@@ -42,7 +42,7 @@ final class WynnSources {
                 Component.literal(name).withStyle(ChatFormatting.YELLOW),
                 List.of(
                         Component.literal(type.getDisplayName()).withStyle(ChatFormatting.GOLD),
-                        Component.translatable("wynncodex.tooltip.source").withStyle(ChatFormatting.DARK_GRAY))));
+                        Component.translatable("wei.tooltip.source").withStyle(ChatFormatting.DARK_GRAY))));
     }
 
     WynnEmiStack professionStack(ProfessionType profession) {
@@ -50,7 +50,7 @@ final class WynnSources {
                 "profession/" + p.name(),
                 new ItemStack(iconFor(p)),
                 Component.literal(p.getDisplayName()).withStyle(ChatFormatting.AQUA),
-                List.of(Component.translatable("wynncodex.tooltip.profession").withStyle(ChatFormatting.GRAY))));
+                List.of(Component.translatable("wei.tooltip.profession").withStyle(ChatFormatting.GRAY))));
     }
 
     Iterable<WynnEmiStack> allSourceStacks() {

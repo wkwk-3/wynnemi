@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex.data;
+package io.github.wkwk.wei.data;
 
 import com.wynntils.models.gear.type.GearAttackSpeed;
 import com.wynntils.models.gear.type.GearInfo;
@@ -13,7 +13,7 @@ import com.wynntils.models.stats.type.StatPossibleValues;
 import com.wynntils.models.stats.type.StatType;
 import com.wynntils.utils.type.Pair;
 import com.wynntils.utils.type.RangedValue;
-import io.github.wkwk.wynncodex.util.Names;
+import io.github.wkwk.wei.util.Names;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;

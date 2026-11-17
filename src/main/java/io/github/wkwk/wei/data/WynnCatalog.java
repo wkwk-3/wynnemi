@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex.data;
+package io.github.wkwk.wei.data;
 
 import com.wynntils.core.components.Managers;
 import com.wynntils.core.components.Models;
@@ -21,8 +21,8 @@ import com.wynntils.screens.guides.powder.GuidePowderItemStack;
 import com.wynntils.screens.guides.rune.GuideRuneItemStack;
 import com.wynntils.screens.guides.tome.GuideTomeItemStack;
 import com.wynntils.screens.guides.ward.GuideWardItemStack;
-import io.github.wkwk.wynncodex.WynnCodex;
-import io.github.wkwk.wynncodex.util.Names;
+import io.github.wkwk.wei.Wei;
+import io.github.wkwk.wei.util.Names;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -385,7 +385,7 @@ public final class WynnCatalog {
         private void fail(String group, Throwable t) {
             // 同じグループのエラーは最初の1回だけ詳しく出す
             if (failedGroups.add(group)) {
-                WynnCodex.LOGGER.warn("Failed to load some Wynncraft {} items", group, t);
+                Wei.LOGGER.warn("Failed to load some Wynncraft {} items", group, t);
             }
         }
 
@@ -435,7 +435,7 @@ public final class WynnCatalog {
                     .forEach(e -> {
                         SetBonus bonus = e.getValue();
                         if (bonus.major().isEmpty() && bonus.minor().isEmpty()) return;
-                        tooltip.add(Component.translatable("wynncodex.tooltip.set_pieces", e.getKey())
+                        tooltip.add(Component.translatable("wei.tooltip.set_pieces", e.getKey())
                                 .withStyle(ChatFormatting.GRAY));
                         for (String major : bonus.major()) {
                             tooltip.add(Component.literal("  " + Names.strip(major)).withStyle(ChatFormatting.AQUA));
@@ -506,7 +506,7 @@ public final class WynnCatalog {
 
     private static BoxFamily boxFamily(String gearTypeName, String gearTierName, String tierDisplay) {
         return new BoxFamily(boxFamilyKey(gearTypeName, gearTierName), Component.translatable(
-                "wynncodex.box.name", tierDisplay, Names.titleCase(gearTypeName)));
+                "wei.box.name", tierDisplay, Names.titleCase(gearTypeName)));
     }
 
     private static String gearAliases(String tier, String type, @Nullable String classType, int level) {

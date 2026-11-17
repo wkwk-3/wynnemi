@@ -1,7 +1,7 @@
-package io.github.wkwk.wynncodex.emi;
+package io.github.wkwk.wei.emi;
 
-import io.github.wkwk.wynncodex.data.WynnCatalog;
-import io.github.wkwk.wynncodex.util.Names;
+import io.github.wkwk.wei.data.WynnCatalog;
+import io.github.wkwk.wei.util.Names;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;

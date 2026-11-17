@@ -1,4 +1,4 @@
-package io.github.wkwk.wynncodex.emi;
+package io.github.wkwk.wei.emi;
 
 import com.wynntils.core.components.Services;
 import com.wynntils.services.itemfilter.type.ItemProviderType;
@@ -6,8 +6,8 @@ import com.wynntils.services.itemfilter.type.ItemSearchQuery;
 import com.wynntils.services.itemfilter.type.ItemStatProvider;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.fork.EmiSearchExtension;
-import io.github.wkwk.wynncodex.WynnCodex;
-import io.github.wkwk.wynncodex.data.WynnCatalog;
+import io.github.wkwk.wei.Wei;
+import io.github.wkwk.wei.data.WynnCatalog;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -118,7 +118,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
                     }
                 }
             } catch (Throwable t) {
-                WynnCodex.LOGGER.warn("Could not read Wynntils item filter keys", t);
+                Wei.LOGGER.warn("Could not read Wynntils item filter keys", t);
             }
             knownKeys = keys;
         }
@@ -163,7 +163,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
                 }
                 ordered = matched;
             } catch (Throwable t) {
-                WynnCodex.LOGGER.warn("Wynntils item filter failed for '{}'", wynnQuery, t);
+                Wei.LOGGER.warn("Wynntils item filter failed for '{}'", wynnQuery, t);
             }
         }
 
