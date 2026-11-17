@@ -9,7 +9,7 @@ import io.github.wkwk.wei.emi.EmiReloadHelper;
  * Wynntils のデータと表示条件を見張り、必要なときだけカタログを作り直して EMI を再読み込みする。
  *
  * <ul>
- *   <li><b>データ</b>（アイテム情報・プレイヤーのクラス）が変わったら、カタログを作り直してから EMI を再読み込み。
+ *   <li><b>データ</b>（アイテム情報）が変わったら、カタログを作り直してから EMI を再読み込み。
  *       主なきっかけは Wynntils のダウンロード完了イベント。件数の確認は初回の取りこぼし防止の保険。</li>
  *   <li><b>表示条件</b>（設定・Wynncraft 接続状態）だけが変わったら、カタログは作り直さず EMI だけ再読み込み。</li>
  *   <li>両方が同時に変わっても、EMI の再読み込みは作り直しが終わった後の1回だけ。</li>
@@ -87,8 +87,9 @@ public final class WynnDataWatcher {
                         reasons, catalogStale, viewStale, appliedViewSignature, registeredViewSignature);
                 EmiReloadHelper.reload();
             } else {
-                Diag.log(3, "EMI reload skipped: reasons=[{}] emiHasRegistered={} stale={} (EMI already has the latest)",
-                        reasons, emiHasRegistered, stale);
+                Diag.log(3, "EMI reload skipped: reasons=[{}] emiHasRegistered={} stale={} ({})",
+                        reasons, emiHasRegistered, stale,
+                        emiHasRegistered ? "EMI already has the latest" : "EMI has not loaded yet; it will pick up the latest when it does");
             }
         }
     }
@@ -96,7 +97,7 @@ public final class WynnDataWatcher {
     private static void checkData() {
         String data = WynnCatalog.computeDataSignature();
         if (!data.equals(lastLoggedDataSignature)) {
-            // diag#3: クラスの変化（最後の項目）で作り直しになっているか
+            // diag#3
             Diag.log(3, "Data signature changed: '{}' -> '{}'", lastLoggedDataSignature, data);
             lastLoggedDataSignature = data;
         }
@@ -198,8 +199,9 @@ public final class WynnDataWatcher {
         builtDataSignature = buildTargetSignature;
         addEmiReloadReason("catalogBuilt");
         emiReloadPending = true;
-        Diag.log(3, "Catalog build DONE: {} items, complete={}, {}ms over {} ticks, max step {}ms",
-                finished.size(), finished.complete(), Diag.ms(buildStartNanos), buildTicks, buildMaxStepMs);
+        Diag.log(3, "Catalog build DONE: {} items, complete={}, {}ms over {} ticks, max step {}ms, {}",
+                finished.size(), finished.complete(), Diag.ms(buildStartNanos), buildTicks, buildMaxStepMs,
+                finished.slowTaskSummary());
         try {
             favoritesRevisionAtBuild = com.wynntils.core.components.Services.Favorites.getRevision();
         } catch (Throwable ignored) {

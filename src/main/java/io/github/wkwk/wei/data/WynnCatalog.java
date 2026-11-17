@@ -21,6 +21,7 @@ import com.wynntils.screens.guides.powder.GuidePowderItemStack;
 import com.wynntils.screens.guides.rune.GuideRuneItemStack;
 import com.wynntils.screens.guides.tome.GuideTomeItemStack;
 import com.wynntils.screens.guides.ward.GuideWardItemStack;
+import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.util.Names;
 import java.util.ArrayDeque;
@@ -165,8 +166,11 @@ public final class WynnCatalog {
 
     /**
      * データが変わったかを見るための軽い指紋（クライアントスレッドで呼ぶ）。
-     * 内容の更新は Wynntils のダウンロード完了イベントで拾うので、ここでは件数と、
-     * 説明文を変えるプレイヤーのクラスだけを見る（初回読み込みの取りこぼし防止用）。
+     * 内容の更新は Wynntils のダウンロード完了イベントで拾うので、ここでは件数だけを見る（初回読み込みの取りこぼし防止用）。
+     *
+     * <p>プレイヤーのクラスは含めない。説明文の「クラスに合うか」の表示は変わるが、そのためだけに
+     * キャラクターを切り替えるたびに全体を作り直し、EMI を再読み込みするのは重すぎる（実機ログで確認: 1 回の切り替えで 2 回ずつ）。
+     * 説明文はカタログを作ったときのクラスのまま。
      */
     static String computeDataSignature() {
         StringBuilder sb = new StringBuilder();
@@ -179,9 +183,7 @@ public final class WynnCatalog {
         sb.append(safe(() -> Models.Aspect.getAllAspectInfos().count())).append(',');
         sb.append(safe(() -> Models.Element.getAllPowderTierInfo().size())).append(',');
         sb.append(safe(() -> Models.Rewards.getAllAmplifierInfo().size())).append(',');
-        sb.append(safe(() -> Models.WynnItem.hasObtainInfo())).append(',');
-        // Wynntils の説明文はクラスによって変わる（使えるかどうかの表示など）
-        sb.append(safe(() -> Models.Character.getClassType()));
+        sb.append(safe(() -> Models.WynnItem.hasObtainInfo()));
         return sb.toString();
     }
 
@@ -202,7 +204,15 @@ public final class WynnCatalog {
      * 作業の一覧づくり（各モデルの列挙）も1つの作業として扱う。
      */
     static final class Build {
-        private final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
+        /** 1 つの作業。label は遅かったときにログで見分けるための名前 */
+        private record Task(String label, Runnable body) {}
+
+        /** この時間を超えた作業は遅いものとして記録する（diag#3: カクつきの原因の特定用） */
+        private static final long SLOW_TASK_NANOS = 8_000_000L;
+
+        private final ArrayDeque<Task> tasks = new ArrayDeque<>();
+        private final List<String> slowTasks = new ArrayList<>();
+        private int slowTaskCount;
         private final List<Entry> entries = new ArrayList<>();
         private final Set<String> keys = new HashSet<>();
         private final Set<String> failedGroups = new LinkedHashSet<>();
@@ -342,10 +352,27 @@ public final class WynnCatalog {
         /** 期限まで作業を進める。全部終わったら true。 */
         boolean step(long deadlineNanos) {
             while (!tasks.isEmpty()) {
-                tasks.pollFirst().run();
+                Task task = tasks.pollFirst();
+                long start = System.nanoTime();
+                task.body().run();
+                long took = System.nanoTime() - start;
+                if (took >= SLOW_TASK_NANOS) recordSlowTask(task.label(), took);
                 if (System.nanoTime() >= deadlineNanos) break;
             }
             return tasks.isEmpty();
+        }
+
+        private void recordSlowTask(String label, long nanos) {
+            slowTaskCount++;
+            double ms = Math.round(nanos / 10_000.0) / 100.0;
+            String entry = label + "=" + ms + "ms";
+            Diag.warn(3, "Slow catalog task: {}", entry);
+            if (slowTasks.size() < 10) slowTasks.add(entry);
+        }
+
+        /** 診断用：遅かった作業の数と、最初の 10 件 */
+        String slowTaskSummary() {
+            return slowTaskCount + " slow task(s)" + (slowTasks.isEmpty() ? "" : " " + slowTasks);
         }
 
         boolean complete() {
@@ -365,7 +392,7 @@ public final class WynnCatalog {
         }
 
         private void group(String name, Supplier<List<Runnable>> planner) {
-            tasks.addLast(() -> {
+            tasks.addLast(new Task("plan:" + name, () -> {
                 List<Runnable> items;
                 try {
                     items = planner.get();
@@ -376,15 +403,15 @@ public final class WynnCatalog {
                 // このグループの各アイテムを、次のグループより先に処理する（並び順を保つ）
                 for (int i = items.size() - 1; i >= 0; i--) {
                     Runnable item = items.get(i);
-                    tasks.addFirst(() -> {
+                    tasks.addFirst(new Task(name + "#" + i, () -> {
                         try {
                             item.run();
                         } catch (Throwable t) {
                             fail(name, t);
                         }
-                    });
+                    }));
                 }
-            });
+            }));
         }
 
         private void fail(String group, Throwable t) {

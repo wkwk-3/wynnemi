@@ -6,8 +6,12 @@ import net.minecraft.ChatFormatting;
 
 /** 名前・ID の整形（正規表現は使い回す） */
 public final class Names {
-    /** Wynncraft のフォントのアイコン（私用領域の文字） */
-    private static final Pattern PRIVATE_USE = Pattern.compile("[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]");
+    /**
+     * Wynncraft のフォントのアイコン（私用領域の文字）。U+E000〜U+F8FF だけでなく、
+     * U+F0000〜/U+100000〜 の補助私用領域（例: U+100002）も含む。
+     * Java の正規表現はコードポイント単位で照合するので、サロゲートの範囲指定では補助私用領域を消せない（実機ログで確認）。
+     */
+    private static final Pattern PRIVATE_USE = Pattern.compile("\\p{Co}");
     public static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final Pattern ID_UNSAFE = Pattern.compile("[^a-z0-9/._-]");
     private static final Pattern NON_ALNUM = Pattern.compile("[^\\p{L}\\p{N}]+");
