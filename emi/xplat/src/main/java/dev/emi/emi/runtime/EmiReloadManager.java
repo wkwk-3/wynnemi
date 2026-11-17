@@ -1,5 +1,6 @@
 package dev.emi.emi.runtime;
 
+import dev.emi.emi.fork.EmiForkApi;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
@@ -193,6 +194,12 @@ public class EmiReloadManager {
 					} else if (client.world.getRecipeManager() == null) {
 						EmiReloadLog.warn("Recipe Manager is null");
 						break;
+					}
+					// [WEI fork] diag#1: wait until mods that registered a load gate have their data,
+					// so favorites/history for their stacks are not dropped on this load
+					EmiForkApi.awaitLoadGates(name -> step(EmiPort.literal("Waiting for " + name)), () -> clear || restart);
+					if (clear || restart) {
+						continue;
 					}
 					List<EmiPluginContainer> plugins = Lists.newArrayList();
 					plugins.addAll(EmiAgnos.getPlugins().stream()

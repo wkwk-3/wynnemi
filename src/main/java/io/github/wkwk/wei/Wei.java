@@ -29,6 +29,8 @@ public final class Wei implements ClientModInitializer {
 
         // EMI の検索欄で Wynntils のフィルター（level:100-105 rarity:mythic sort:... など）を使えるようにする（フォークの API）
         EmiForkApi.registerSearchExtension(new WynnSearchExtension());
+        // 一覧ができるまで EMI の読み込みを待ってもらう（空の一覧で読み込むと、お気に入りや履歴が外れる）
+        EmiForkApi.registerLoadGate("WEI item list", WynnDataWatcher::isCatalogReadyForEmi);
 
         // Wynntils のデータは起動後に非同期でダウンロードされる。ダウンロード完了イベント（主）と
         // 件数の監視（保険）で、揃ったら・変わったらカタログを作り直して EMI を再読み込みする

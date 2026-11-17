@@ -50,6 +50,9 @@ public final class WynnFavoritesSync {
         if (!WeiConfig.get().syncFavoritesToWynntils) return;
         // Wynntils のデータと設定が読み込まれるまで待つ
         if (WynnCatalog.current().entries().isEmpty()) return;
+        // EMI の読み込み中（お気に入り一覧がいったん空になる）や、WEI の索引ができる前は動かない。
+        // 実機ログで、この間に Wynntils 側のお気に入りを全部外していた（diag#2）
+        if (!dev.emi.emi.runtime.EmiReloadManager.isLoaded() || !WynnLookup.isReady()) return;
         try {
             if (added == null) added = load();
 
@@ -82,7 +85,8 @@ public final class WynnFavoritesSync {
             }
             if (removed > 0 && removed == trackedBefore) {
                 // diag#2: 一度に全部外した＝EMI の再読み込み中や準備前に動いた疑い
-                Diag.warn(2, "Removed ALL {} tracked Wynntils favorites at once (emiLoaded={}, lookup ready={})",
+                // EMI と WEI の準備ができているときだけ動くので、これは利用者が EMI 側で全部外した操作
+                Diag.log(2, "Removed all {} tracked Wynntils favorites (user removed them in EMI; emiLoaded={}, lookup ready={})",
                         removed, emiLoaded, WynnLookup.isReady());
             }
             if (changed) save(added);

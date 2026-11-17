@@ -1,5 +1,7 @@
 package dev.emi.emi.fork;
 
+import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -14,6 +16,11 @@ import dev.emi.emi.runtime.EmiLog;
  */
 public final class EmiForkApi {
 	private static final List<EmiSearchExtension> SEARCH_EXTENSIONS = new CopyOnWriteArrayList<>();
+	private static final List<LoadGate> LOAD_GATES = new CopyOnWriteArrayList<>();
+	private static final long LOAD_GATE_TIMEOUT_MS = 30_000;
+
+	private record LoadGate(String name, BooleanSupplier ready) {
+	}
 
 	private EmiForkApi() {
 	}
@@ -24,6 +31,67 @@ public final class EmiForkApi {
 	 */
 	public static void registerSearchExtension(EmiSearchExtension extension) {
 		SEARCH_EXTENSIONS.add(extension);
+	}
+
+	/**
+	 * Registers a condition EMI waits for before registering plugins (for example, "my mod's data is loaded").
+	 * Without this, EMI can load while a plugin has nothing to register yet, and favorites / history entries
+	 * for that plugin's stacks fail to deserialize. EMI waits at most 30 seconds, then loads anyway.
+	 * The supplier is called from EMI's reload thread.
+	 */
+	public static void registerLoadGate(String name, BooleanSupplier ready) {
+		LOAD_GATES.add(new LoadGate(name, ready));
+	}
+
+	/**
+	 * Blocks the reload thread until every gate is ready, the timeout passes, or {@code abort} returns true.
+	 */
+	@ApiStatus.Internal
+	public static void awaitLoadGates(Consumer<String> step, BooleanSupplier abort) {
+		long start = System.currentTimeMillis();
+		String waitingFor = null;
+		while (true) {
+			String notReady = null;
+			for (LoadGate gate : LOAD_GATES) {
+				boolean ready;
+				try {
+					ready = gate.ready().getAsBoolean();
+				} catch (Throwable t) {
+					EmiLog.error("Load gate '" + gate.name() + "' failed; ignoring it:", t);
+					ready = true;
+				}
+				if (!ready) {
+					notReady = gate.name();
+					break;
+				}
+			}
+			long waited = System.currentTimeMillis() - start;
+			if (notReady == null) {
+				if (waitingFor != null) {
+					EmiForkDiag.log(1, "Load gates ready after " + waited + "ms");
+				}
+				return;
+			}
+			if (abort.getAsBoolean()) {
+				EmiForkDiag.log(1, "Waiting for load gate '" + notReady + "' aborted after " + waited + "ms");
+				return;
+			}
+			if (waited >= LOAD_GATE_TIMEOUT_MS) {
+				EmiLog.warn("Load gate '" + notReady + "' not ready after " + waited + "ms; loading anyway");
+				EmiForkDiag.log(1, "Load gate '" + notReady + "' TIMED OUT after " + waited + "ms; loading anyway");
+				return;
+			}
+			if (!notReady.equals(waitingFor)) {
+				waitingFor = notReady;
+				EmiForkDiag.log(1, "EMI waits for load gate '" + notReady + "' before registering plugins");
+				step.accept(notReady);
+			}
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				return;
+			}
+		}
 	}
 
 	/**

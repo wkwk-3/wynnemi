@@ -53,12 +53,15 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         List<String> apiTokens = new ArrayList<>();
         List<String> wynnTokens = new ArrayList<>();
         List<String> otherTokens = new ArrayList<>();
+        // 頭に - を付けた条件は「当てはまるものを除く」
+        List<String> negatedApiTokens = new ArrayList<>();
+        List<String> negatedWynnTokens = new ArrayList<>();
         for (String token : query.trim().split("\\s+")) {
-            if (token.startsWith("-") && (isApiToken(token.substring(1)) || isWynnToken(token.substring(1)))) {
-                // diag#8: 否定は未対応。EMI の名前検索に回るので結果が 0 件になる
-                Diag.warn(8, "Negated WEI term '{}' is not supported; it is passed to EMI's name search (likely 0 results)", token);
-            }
-            if (isApiToken(token)) {
+            if (token.length() > 1 && token.startsWith("-") && isApiToken(token.substring(1))) {
+                negatedApiTokens.add(token.substring(1));
+            } else if (token.length() > 1 && token.startsWith("-") && isWynnToken(token.substring(1))) {
+                negatedWynnTokens.add(token.substring(1));
+            } else if (isApiToken(token)) {
                 apiTokens.add(token);
             } else if (isWynnToken(token)) {
                 wynnTokens.add(token);
@@ -66,9 +69,12 @@ public final class WynnSearchExtension implements EmiSearchExtension {
                 otherTokens.add(token);
             }
         }
-        if (apiTokens.isEmpty() && wynnTokens.isEmpty()) return null;
+        if (apiTokens.isEmpty() && wynnTokens.isEmpty() && negatedApiTokens.isEmpty() && negatedWynnTokens.isEmpty()) {
+            return null;
+        }
 
-        Result result = evaluate(String.join(" ", apiTokens), String.join(" ", wynnTokens));
+        Result result = evaluate(String.join(" ", apiTokens), String.join(" ", wynnTokens),
+                negatedApiTokens, negatedWynnTokens);
         String remaining = String.join(" ", otherTokens);
 
         return new Prepared() {
@@ -133,9 +139,9 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         return knownKeys;
     }
 
-    private Result evaluate(String apiQuery, String wynnQuery) {
+    private Result evaluate(String apiQuery, String wynnQuery, List<String> negatedApi, List<String> negatedWynn) {
         WynnCatalog catalog = WynnCatalog.current();
-        String cacheKey = apiQuery + "\u0000" + wynnQuery;
+        String cacheKey = apiQuery + "\u0000" + wynnQuery + "\u0000" + negatedApi + "\u0000" + negatedWynn;
         if (cacheKey.equals(cachedQuery) && catalog == cachedCatalog && cachedResult != null) {
             Diag.log(4, "Search cache HIT api='{}' wynntils='{}'", apiQuery, wynnQuery);
             return cachedResult;
@@ -184,6 +190,18 @@ public final class WynnSearchExtension implements EmiSearchExtension {
             }
         }
 
+        // 2b. 頭に - を付けた条件に当てはまるものを除く（条件ごとに判定し、どれかに当てはまれば除外）
+        if (!negatedApi.isEmpty() || !negatedWynn.isEmpty()) {
+            Set<String> excluded = excludedKeys(catalog, negatedApi, negatedWynn);
+            List<WynnCatalog.Entry> kept = new ArrayList<>(ordered.size());
+            for (WynnCatalog.Entry entry : ordered) {
+                if (!excluded.contains(entry.key())) kept.add(entry);
+            }
+            Diag.log(8, "Negated terms api={} wynntils={} excluded {} of {} items", negatedApi, negatedWynn,
+                    ordered.size() - kept.size(), ordered.size());
+            ordered = kept;
+        }
+
         // 3. Wynntils の sort: が無く identifications を指定していれば、公式サイトと同じく最初の ID の値が大きい順
         String firstId = api.firstIdentification();
         if (!sorted && firstId != null) {
@@ -214,5 +232,37 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         cachedCatalog = catalog;
         cachedResult = result;
         return result;
+    }
+
+    private Set<String> excludedKeys(WynnCatalog catalog, List<String> negatedApi, List<String> negatedWynn) {
+        Set<String> excluded = new HashSet<>();
+        for (String token : negatedApi) {
+            int colon = token.indexOf(':');
+            ApiSearchTerms term = new ApiSearchTerms();
+            term.add(token.substring(0, colon), token.substring(colon + 1));
+            for (WynnCatalog.Entry entry : catalog.entries()) {
+                if (term.matches(entry.facets())) excluded.add(entry.key());
+            }
+        }
+        if (!negatedWynn.isEmpty()) {
+            Map<ItemStack, String> keyByStack = new IdentityHashMap<>();
+            List<ItemStack> stacks = new ArrayList<>();
+            for (WynnCatalog.Entry entry : catalog.entries()) {
+                keyByStack.put(entry.stack(), entry.key());
+                stacks.add(entry.stack());
+            }
+            for (String token : negatedWynn) {
+                try {
+                    ItemSearchQuery query = Services.ItemFilter.createSearchQuery(token, false, ItemProviderType.normalTypes());
+                    for (ItemStack stack : Services.ItemFilter.filterAndSort(query, stacks)) {
+                        String key = keyByStack.get(stack);
+                        if (key != null) excluded.add(key);
+                    }
+                } catch (Throwable t) {
+                    Wei.LOGGER.warn("Wynntils item filter failed for negated term '{}'", token, t);
+                }
+            }
+        }
+        return excluded;
     }
 }

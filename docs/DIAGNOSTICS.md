@@ -24,3 +24,11 @@
 起動直後の `diag#10` に `WEI version: 1.0.0-test.3+1.21.11` のように出るので、どの jar でテストしたか確認できます。
 
 ログを共有するときは、`grep "WEI diag" logs/latest.log` の結果をそのまま貼ってもらえれば足ります。
+
+## test.4 で追加・変更
+
+- #1: `EMI waits for load gate 'WEI item list'` / `Load gate ... ready after Nms`。EMI は WEI のアイテム一覧ができるまで読み込みを待つ（最大30秒）。
+- #1: `Favorite UNRESOLVED on load (kept…)`。読めなかったお気に入りや履歴は消さずに残し、保存時に書き戻す。
+- #2: お気に入り同期は EMI の読み込みと WEI の索引の準備ができるまで動かない。
+- #8: `-key:value` を否定条件として扱う。`Negated terms ... excluded X of Y items`。
+- #7: 名前で見つからないとき `Name candidates for ...` で似た名前を最大5件出す（ルーン調査用）。

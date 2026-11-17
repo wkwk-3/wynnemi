@@ -35,6 +35,9 @@ public final class WynnDataWatcher {
     private static int stableChecks;
     private static boolean rebuildRequested;
     private static WynnCatalog.Build build;
+    // EMI の読み込みスレッドから読む（ロードゲート用）
+    private static volatile boolean buildInProgress;
+    private static volatile boolean catalogBuiltOnce;
     private static String buildTargetSignature;
     private static int failedAttempts;
     private static long retryAtMillis = -1;
@@ -73,7 +76,14 @@ public final class WynnDataWatcher {
         }
 
         // EMI の再読み込みは、作り直しが終わってから1回だけ
-        if (emiReloadPending && build == null) {
+        // EMI が読み込み中なら判断を保留する。ロードゲートで一覧の完成を待っているので、
+        // 読み込みが終われば最新の一覧を持っている（重ねて再読み込みしない）
+        boolean emiLoading = false;
+        try {
+            emiLoading = dev.emi.emi.runtime.EmiReloadManager.getStatus() == 1;
+        } catch (Throwable ignored) {
+        }
+        if (emiReloadPending && build == null && !emiLoading) {
             emiReloadPending = false;
             // EMI がまだ読み込んでいない、または EMI 自身の再読み込み（ワールド参加時など）で
             // すでに最新の内容を拾っていれば、重ねて再読み込みしない
@@ -166,6 +176,7 @@ public final class WynnDataWatcher {
         buildTicks = 0;
         buildMaxStepMs = 0;
         build = new WynnCatalog.Build();
+        buildInProgress = true;
         buildTargetSignature = targetSignature;
         pendingDataSignature = null;
         stableChecks = 0;
@@ -187,14 +198,18 @@ public final class WynnDataWatcher {
             // 個々の作業は Build 内で捕まえているので、ここに来るのは想定外
             Wei.LOGGER.error("Wynncraft item catalog build crashed", t);
             build = null;
+            buildInProgress = false;
+            catalogBuiltOnce = true;
             scheduleRetry();
             return;
         }
         if (!done) return;
 
         WynnCatalog.Build finished = build;
-        build = null;
         WynnCatalog.publish(finished.result());
+        build = null;
+        catalogBuiltOnce = true;
+        buildInProgress = false;
         // 不完全でも記録する（件数の監視で毎秒作り直さないため）。不完全なら下で再試行を予約する
         builtDataSignature = buildTargetSignature;
         addEmiReloadReason("catalogBuilt");
@@ -253,6 +268,15 @@ public final class WynnDataWatcher {
         emiReloadPending = true;
         // 設定が同じでも、明示的に頼まれたら必ず再読み込みする
         registeredViewSignature = null;
+    }
+
+    /**
+     * EMI のロードゲート用（EMI の読み込みスレッドから呼ばれる）。
+     * 一覧を一度作り終えていて、作り直しの途中でなければ true。
+     * これが false の間に EMI が読み込むと、WEI のお気に入りや履歴が読めずに外れてしまう（diag#1）。
+     */
+    public static boolean isCatalogReadyForEmi() {
+        return catalogBuiltOnce && !buildInProgress;
     }
 
     public static boolean onWynncraft() {

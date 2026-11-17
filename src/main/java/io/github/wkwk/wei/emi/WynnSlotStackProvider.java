@@ -16,6 +16,8 @@ import dev.emi.emi.api.stack.EmiStackInteraction;
 import io.github.wkwk.wei.data.WynnCatalog;
 import io.github.wkwk.wei.mixin.AbstractContainerScreenAccessor;
 import io.github.wkwk.wei.util.Names;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.client.gui.screens.Screen;
@@ -70,6 +72,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 Diag.once(7, "name:" + wynnItem.get().getClass().getName() + ":" + name,
                         "Inventory item matched BY NAME: '{}' ({}) -> {}", name,
                         wynnItem.get().getClass().getSimpleName(), byName == null ? "no match" : byName);
+                if (byName == null) logNameCandidates(lookup, name);
             }
             return found == null ? EmiStackInteraction.EMPTY : new EmiStackInteraction(found, null, false);
         } catch (Throwable t) {
@@ -86,5 +89,22 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
         if (item instanceof TomeItem tome) return "tome/" + tome.getItemInfo().name();
         if (item instanceof AspectItem aspect) return "aspect/" + aspect.getAspectInfo().name() + " T" + aspect.getTier();
         return null;
+    }
+
+    /** diag#7: 名前で見つからなかったとき、最後の単語を含むカタログ名を最大5件出す（表記ゆれの調査用） */
+    private static void logNameCandidates(WynnLookup lookup, String name) {
+        String stripped = Names.strip(name).toLowerCase(Locale.ROOT).trim();
+        String[] words = stripped.split("\\s+");
+        String last = words.length == 0 ? "" : words[words.length - 1];
+        if (last.length() < 3) return;
+        List<String> candidates = new ArrayList<>();
+        for (String plain : lookup.keyByPlainName.keySet()) {
+            if (plain.contains(last)) {
+                candidates.add(plain);
+                if (candidates.size() >= 5) break;
+            }
+        }
+        Diag.once(7, "cand:" + stripped, "Name candidates for '{}' (stripped '{}', word '{}'): {}", name, stripped, last,
+                candidates.isEmpty() ? "none" : candidates);
     }
 }
