@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.data;
 
+import io.github.wkwk.wei.Diag;
 import com.wynntils.core.WynntilsMod;
 import com.wynntils.core.net.event.DownloadEvent;
 import io.github.wkwk.wei.Wei;
@@ -21,6 +22,7 @@ public final class WynntilsDownloadListener {
         registered = true;
         try {
             WynntilsMod.registerEventListener(new WynntilsDownloadListener());
+            Diag.log(3, "Listening to Wynntils download events");
         } catch (Throwable t) {
             Wei.LOGGER.warn("Could not listen to Wynntils download events; falling back to polling", t);
         }

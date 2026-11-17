@@ -10,6 +10,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import dev.emi.emi.fork.EmiForkDiag;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.recipe.EmiPlayerInventory;
@@ -51,6 +52,8 @@ public class EmiFavorites {
 
 	public static void load(JsonArray arr) {
 		favorites.clear();
+		// [WEI fork] diag#1: favorites dropped because their stack could not be deserialized
+		int diagSkipped = 0;
 		for (JsonElement el : arr) {
 			if (el.isJsonObject()) {
 				JsonObject json = el.getAsJsonObject();
@@ -61,6 +64,8 @@ public class EmiFavorites {
 				if (JsonHelper.hasElement(json, "stack")) {
 					EmiIngredient ingredient = EmiIngredientSerializer.getDeserialized(json.get("stack"));
 					if (ingredient.isEmpty()) {
+						diagSkipped++;
+						EmiForkDiag.log(1, "Favorite DROPPED on load (could not deserialize): " + json.get("stack"));
 						continue;
 					}
 					if (ingredient instanceof EmiStack es) {
@@ -70,6 +75,8 @@ public class EmiFavorites {
 				}
 			}
 		}
+		EmiForkDiag.log(1, "Favorites loaded: " + favorites.size() + " of " + arr.size() + " (dropped " + diagSkipped
+			+ ", WEI entries in file " + EmiForkDiag.countWei(arr.toString()) + ")");
 	}
 
 	public static boolean canFavorite(EmiIngredient stack, EmiRecipe recipe) {

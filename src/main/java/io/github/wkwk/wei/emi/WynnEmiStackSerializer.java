@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.emi;
 
+import io.github.wkwk.wei.Diag;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.emi.emi.api.stack.EmiIngredient;
@@ -36,6 +37,10 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
             if (json.has("key")) {
                 WynnEmiStack stack = REGISTERED.get(json.get("key").getAsString());
                 if (stack != null) return stack.copy();
+                // diag#1: ここで空を返すと EMI はそのお気に入り（非表示設定など）を捨てる
+                Diag.warn(1, "Deserialize MISS for key '{}' (registered stacks: {}, catalog items: {}, thread={})",
+                        json.get("key").getAsString(), REGISTERED.size(),
+                        io.github.wkwk.wei.data.WynnCatalog.current().entries().size(), Diag.thread());
             }
         }
         return EmiStack.EMPTY;

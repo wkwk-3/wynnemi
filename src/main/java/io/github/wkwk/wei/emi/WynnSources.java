@@ -53,6 +53,10 @@ final class WynnSources {
                 List.of(Component.translatable("wei.tooltip.profession").withStyle(ChatFormatting.GRAY))));
     }
 
+    int sourceCount() {
+        return sources.size();
+    }
+
     Iterable<WynnEmiStack> allSourceStacks() {
         return sources.values();
     }

@@ -25,6 +25,7 @@ public final class Wei implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         WeiConfig.load();
+        StartupDiag.logEnvironment();
 
         // EMI の検索欄で Wynntils のフィルター（level:100-105 rarity:mythic sort:... など）を使えるようにする（フォークの API）
         EmiForkApi.registerSearchExtension(new WynnSearchExtension());

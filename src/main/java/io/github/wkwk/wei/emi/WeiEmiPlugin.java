@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.emi;
 
+import io.github.wkwk.wei.Diag;
 import com.wynntils.models.profession.type.ProfessionType;
 import com.wynntils.models.wynnitem.type.ItemObtainType;
 import dev.emi.emi.api.EmiEntrypoint;
@@ -49,6 +50,10 @@ public final class WeiEmiPlugin implements EmiPlugin {
         String view = WynnDataWatcher.viewSignature();
         boolean onWynncraft = WynnDataWatcher.onWynncraft();
         WynnDataWatcher.markEmiRegistered(catalog, view);
+        long diagStart = System.nanoTime();
+        // diag#3: 登録時に使った接続状態（1 秒ごとの確認の値）と、その瞬間の実際の値がずれていれば二重読み込みの原因
+        Diag.log(3, "Plugin register START: cachedOnWynncraft={} liveOnWynncraft={} catalog={} items, sets={}",
+                onWynncraft, WynnCatalog.isOnWynncraftNow(), catalog.entries().size(), catalog.sets().size());
 
         WynnEmiStackSerializer.clear();
 
@@ -63,6 +68,8 @@ public final class WeiEmiPlugin implements EmiPlugin {
 
         if (catalog.entries().isEmpty()) {
             // Wynntils のデータがまだ無い。揃ったら WynnDataWatcher が EMI を再読み込みする
+            // diag#1: この状態で EMI がお気に入りを読むと、WEI のお気に入りは落とされる
+            Diag.warn(1, "Plugin registered with an EMPTY catalog: WEI favorites/hidden stacks in EMI's file will be dropped on this load");
             WynnLookup.publish(new WynnLookup(Map.of(), Map.of(), Map.of(), Map.of()));
             return;
         }
@@ -249,6 +256,9 @@ public final class WeiEmiPlugin implements EmiPlugin {
 
         WynnLookup.publish(new WynnLookup(Map.copyOf(byKey), Map.copyOf(keyByPlainName),
                 Map.copyOf(favoriteNameByKey), Map.copyOf(boxes)));
+        Diag.log(3, "Plugin register DONE in {}ms: {} stacks, {} recipe ids, {} sources, {} box families, hideVanilla={}",
+                Diag.ms(diagStart), byKey.size(), usedRecipeIds.size(), sources.sourceCount(), boxes.size(),
+                config.hideVanillaOnWynncraft && onWynncraft);
     }
 
     private static Component levelCaption(int level) {

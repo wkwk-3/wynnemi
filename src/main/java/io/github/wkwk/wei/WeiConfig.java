@@ -26,6 +26,8 @@ public final class WeiConfig {
     public boolean showGearRecipes = true;
     /** EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる */
     public boolean syncFavoritesToWynntils = true;
+    /** 実機テスト用の診断ログ（[WEI diag#番号]）を出す */
+    public boolean diagnostics = true;
 
     public static WeiConfig get() {
         return instance;

@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.emi;
 
+import io.github.wkwk.wei.Diag;
 import com.wynntils.core.components.Services;
 import com.wynntils.services.itemfilter.type.ItemProviderType;
 import com.wynntils.services.itemfilter.type.ItemSearchQuery;
@@ -53,6 +54,10 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         List<String> wynnTokens = new ArrayList<>();
         List<String> otherTokens = new ArrayList<>();
         for (String token : query.trim().split("\\s+")) {
+            if (token.startsWith("-") && (isApiToken(token.substring(1)) || isWynnToken(token.substring(1)))) {
+                // diag#8: 否定は未対応。EMI の名前検索に回るので結果が 0 件になる
+                Diag.warn(8, "Negated WEI term '{}' is not supported; it is passed to EMI's name search (likely 0 results)", token);
+            }
             if (isApiToken(token)) {
                 apiTokens.add(token);
             } else if (isWynnToken(token)) {
@@ -119,7 +124,10 @@ public final class WynnSearchExtension implements EmiSearchExtension {
                 }
             } catch (Throwable t) {
                 Wei.LOGGER.warn("Could not read Wynntils item filter keys", t);
+                // diag#6: 空のまま覚えると、再起動まで Wynntils の書き方が効かない
+                Diag.warn(6, "Wynntils filter keys FAILED to load; cached {} keys (only 'sort') until restart", keys.size());
             }
+            Diag.log(6, "Wynntils filter keys loaded: {} keys (thread={})", keys.size(), Diag.thread());
             knownKeys = keys;
         }
         return knownKeys;
@@ -129,8 +137,11 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         WynnCatalog catalog = WynnCatalog.current();
         String cacheKey = apiQuery + "\u0000" + wynnQuery;
         if (cacheKey.equals(cachedQuery) && catalog == cachedCatalog && cachedResult != null) {
+            Diag.log(4, "Search cache HIT api='{}' wynntils='{}'", apiQuery, wynnQuery);
             return cachedResult;
         }
+        long diagStart = System.nanoTime();
+        double diagWynntilsMs = 0;
 
         // 1. 公式 API と同じキーで絞り込む
         ApiSearchTerms api = new ApiSearchTerms();
@@ -157,7 +168,13 @@ public final class WynnSearchExtension implements EmiSearchExtension {
                     stacks.add(entry.stack());
                 }
                 List<WynnCatalog.Entry> matched = new ArrayList<>();
-                for (ItemStack stack : Services.ItemFilter.filterAndSort(query, stacks)) {
+                long wynntilsStart = System.nanoTime();
+                List<ItemStack> filtered = Services.ItemFilter.filterAndSort(query, stacks);
+                diagWynntilsMs = Diag.ms(wynntilsStart);
+                if (!query.errors().isEmpty()) {
+                    Diag.log(4, "Wynntils filter reported errors for '{}': {}", wynnQuery, query.errors());
+                }
+                for (ItemStack stack : filtered) {
                     WynnCatalog.Entry entry = entryByStack.get(stack);
                     if (entry != null) matched.add(entry);
                 }
@@ -184,6 +201,15 @@ public final class WynnSearchExtension implements EmiSearchExtension {
             rank.putIfAbsent(ordered.get(i).key(), i);
         }
         Result result = new Result(Map.copyOf(rank), sorted);
+        // diag#4: クライアントスレッドでの評価時間（入力のたびに走る）
+        double totalMs = Diag.ms(diagStart);
+        if (totalMs > 16) {
+            Diag.warn(4, "Search evaluation took {}ms (> 1 frame) api='{}' wynntils='{}' candidates={} matched={} (wynntils filter {}ms)",
+                    totalMs, apiQuery, wynnQuery, candidates.size(), rank.size(), diagWynntilsMs);
+        } else {
+            Diag.log(4, "Search evaluation {}ms api='{}' wynntils='{}' candidates={} matched={} (wynntils filter {}ms)",
+                    totalMs, apiQuery, wynnQuery, candidates.size(), rank.size(), diagWynntilsMs);
+        }
         cachedQuery = cacheKey;
         cachedCatalog = catalog;
         cachedResult = result;

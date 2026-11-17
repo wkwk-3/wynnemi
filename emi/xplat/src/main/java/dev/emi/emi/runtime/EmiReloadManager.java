@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 
 import com.google.common.collect.Lists;
 
+import dev.emi.emi.fork.EmiForkDiag;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiInitRegistry;
 import dev.emi.emi.api.EmiRegistry;
@@ -84,6 +85,9 @@ public class EmiReloadManager {
 	}
 	
 	public static void reload() {
+		// [WEI fork] diag#3: who requests EMI reloads, and how often
+		EmiForkDiag.log(3, "EMI reload requested (running=" + (thread != null && thread.isAlive()) + ", status=" + status
+			+ ", thread=" + Thread.currentThread().getName() + ") from " + EmiForkDiag.caller(5));
 		synchronized (EmiReloadManager.class) {
 			step(EmiPort.literal("Starting Reload"));
 			status = 1;
@@ -233,6 +237,8 @@ public class EmiReloadManager {
 					EmiScreenManager.forceRecalculate();
 					EmiReloadLog.bake();
 					EmiLog.info("Reloaded EMI in " + (System.currentTimeMillis() - reloadStart) + "ms");
+					// [WEI fork] diag#3
+					EmiForkDiag.log(3, "EMI reload finished in " + (System.currentTimeMillis() - reloadStart) + "ms (restart=" + restart + ")");
 					status = 2;
 				} catch (Throwable e) {
 					EmiReloadLog.warn("Critical error occured during reload:", e);

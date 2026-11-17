@@ -31,6 +31,8 @@ public final class EmiForkApi {
 	 */
 	@ApiStatus.Internal
 	public static PreparedSearch prepareSearch(String query) {
+		// [WEI fork] diag#4: time spent preparing extensions on the client thread for each search
+		long diagStart = System.nanoTime();
 		List<EmiSearchExtension.Prepared> prepared = new ArrayList<>();
 		String remaining = query;
 		for (EmiSearchExtension extension : SEARCH_EXTENSIONS) {
@@ -43,6 +45,9 @@ public final class EmiForkApi {
 			} catch (Throwable t) {
 				EmiLog.error("Search extension failed to prepare query:", t);
 			}
+		}
+		if (!prepared.isEmpty()) {
+			EmiForkDiag.log(4, "Search extensions prepared in " + (System.nanoTime() - diagStart) / 1000 / 1000.0 + "ms for query '" + query + "'");
 		}
 		return new PreparedSearch(remaining, List.copyOf(prepared));
 	}

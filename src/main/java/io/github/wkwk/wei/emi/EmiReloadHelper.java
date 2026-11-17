@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.emi;
 
+import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import java.lang.reflect.Method;
 
@@ -22,6 +23,9 @@ public final class EmiReloadHelper {
             }
             if (reloadMethod != null) {
                 reloadMethod.invoke(null);
+                Diag.log(11, "EMI reload invoked via reflection");
+            } else {
+                Diag.warn(11, "EMI reload method not found; reload skipped");
             }
         } catch (Throwable t) {
             Wei.LOGGER.warn("Could not trigger EMI reload; rejoin the world to refresh EMI", t);

@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.emi;
 
+import io.github.wkwk.wei.Diag;
 import com.wynntils.core.components.Models;
 import com.wynntils.models.items.WynnItem;
 import com.wynntils.models.items.items.game.AspectItem;
@@ -55,12 +56,20 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
 
             String key = keyOf(wynnItem.get());
             WynnEmiStack found = key == null ? null : lookup.byKey.get(key);
+            if (key != null && found == null) {
+                Diag.once(7, "miss:" + key, "Inventory item key not in catalog: '{}' ({})", key,
+                        wynnItem.get().getClass().getSimpleName());
+            }
             if (found == null) {
                 // 種類ごとの対応が無いもの（パウダー・ルーンなど）は名前で引く
                 String name = wynnItem.get() instanceof NamedItemProperty named ? named.getName() : null;
                 if (name == null) name = stack.getHoverName().getString();
                 String byName = lookup.keyByPlainName.get(Names.strip(name).toLowerCase(Locale.ROOT));
                 if (byName != null) found = lookup.byKey.get(byName);
+                // diag#7: 名前だけで対応付けた（別のアイテムと取り違える可能性がある）
+                Diag.once(7, "name:" + wynnItem.get().getClass().getName() + ":" + name,
+                        "Inventory item matched BY NAME: '{}' ({}) -> {}", name,
+                        wynnItem.get().getClass().getSimpleName(), byName == null ? "no match" : byName);
             }
             return found == null ? EmiStackInteraction.EMPTY : new EmiStackInteraction(found, null, false);
         } catch (Throwable t) {

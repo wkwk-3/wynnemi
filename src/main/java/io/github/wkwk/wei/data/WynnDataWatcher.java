@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.data;
 
+import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.WeiConfig;
 import io.github.wkwk.wei.emi.EmiReloadHelper;
@@ -42,6 +43,16 @@ public final class WynnDataWatcher {
     private static volatile String appliedViewSignature = "";
     private static volatile boolean onWynncraft;
 
+    // 診断用（diag#3 / #5 / #9）
+    private static String lastLoggedDataSignature;
+    private static final StringBuilder emiReloadReasons = new StringBuilder();
+    private static long buildStartNanos;
+    private static int buildTicks;
+    private static double buildMaxStepMs;
+    private static String buildReason = "";
+    private static int favoritesRevisionAtBuild = Integer.MIN_VALUE;
+    private static int lastLoggedFavoritesRevision = Integer.MIN_VALUE;
+
     // EMI（最後に EMI が読み込んだときに使ったカタログと表示条件）
     private static boolean emiReloadPending;
     private static volatile boolean emiHasRegistered;
@@ -66,16 +77,30 @@ public final class WynnDataWatcher {
             emiReloadPending = false;
             // EMI がまだ読み込んでいない、または EMI 自身の再読み込み（ワールド参加時など）で
             // すでに最新の内容を拾っていれば、重ねて再読み込みしない
-            boolean stale = registeredCatalog != WynnCatalog.current()
-                    || !appliedViewSignature.equals(registeredViewSignature);
+            boolean catalogStale = registeredCatalog != WynnCatalog.current();
+            boolean viewStale = !appliedViewSignature.equals(registeredViewSignature);
+            boolean stale = catalogStale || viewStale;
+            String reasons = emiReloadReasons.toString();
+            emiReloadReasons.setLength(0);
             if (emiHasRegistered && stale) {
+                Diag.log(3, "WEI triggers EMI reload: reasons=[{}] catalogStale={} viewStale={} view='{}' registeredView='{}'",
+                        reasons, catalogStale, viewStale, appliedViewSignature, registeredViewSignature);
                 EmiReloadHelper.reload();
+            } else {
+                Diag.log(3, "EMI reload skipped: reasons=[{}] emiHasRegistered={} stale={} (EMI already has the latest)",
+                        reasons, emiHasRegistered, stale);
             }
         }
     }
 
     private static void checkData() {
         String data = WynnCatalog.computeDataSignature();
+        if (!data.equals(lastLoggedDataSignature)) {
+            // diag#3: クラスの変化（最後の項目）で作り直しになっているか
+            Diag.log(3, "Data signature changed: '{}' -> '{}'", lastLoggedDataSignature, data);
+            lastLoggedDataSignature = data;
+        }
+        checkFavoritesRevision();
 
         boolean changed = !data.equals(builtDataSignature);
         if (changed && !data.equals(pendingDataSignature)) {
@@ -92,6 +117,8 @@ public final class WynnDataWatcher {
             retryAtMillis = -1;
         }
         if (rebuildRequested || settled || retryDue) {
+            buildReason = (rebuildRequested ? "requested(event/command) " : "") + (settled ? "dataChanged " : "")
+                    + (retryDue ? "retry#" + failedAttempts : "");
             rebuildRequested = false;
             retryAtMillis = -1;
             startBuild(data);
@@ -103,12 +130,40 @@ public final class WynnDataWatcher {
         String view = wynn + "|" + WeiConfig.currentSignature();
         if (view.equals(appliedViewSignature)) return;
 
+        Diag.log(3, "View changed: '{}' -> '{}' (onWynncraft={}, emiHasRegistered={}, registeredView='{}')",
+                appliedViewSignature, view, wynn, emiHasRegistered, registeredViewSignature);
         onWynncraft = wynn;
         appliedViewSignature = view;
+        addEmiReloadReason("view");
         emiReloadPending = true;
     }
 
+    private static void addEmiReloadReason(String reason) {
+        if (!emiReloadReasons.isEmpty()) emiReloadReasons.append(',');
+        emiReloadReasons.append(reason);
+    }
+
+    /** diag#9: 説明文は構築時のまま。Wynntils のお気に入りが変わったら、星などが古くなっている */
+    private static void checkFavoritesRevision() {
+        if (!Diag.enabled()) return;
+        try {
+            int revision = com.wynntils.core.components.Services.Favorites.getRevision();
+            if (revision != lastLoggedFavoritesRevision) {
+                if (favoritesRevisionAtBuild != Integer.MIN_VALUE && revision != favoritesRevisionAtBuild) {
+                    Diag.log(9, "Wynntils favorites changed after the catalog was built (revision {} -> {}): tooltips may be stale",
+                            favoritesRevisionAtBuild, revision);
+                }
+                lastLoggedFavoritesRevision = revision;
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void startBuild(String targetSignature) {
+        Diag.log(3, "Catalog build START: reason=[{}] target='{}'", buildReason, targetSignature);
+        buildStartNanos = System.nanoTime();
+        buildTicks = 0;
+        buildMaxStepMs = 0;
         build = new WynnCatalog.Build();
         buildTargetSignature = targetSignature;
         pendingDataSignature = null;
@@ -117,8 +172,16 @@ public final class WynnDataWatcher {
 
     private static void stepBuild() {
         boolean done;
+        long stepStart = System.nanoTime();
         try {
             done = build.step(System.nanoTime() + BUILD_BUDGET_NANOS);
+            buildTicks++;
+            double stepMs = Diag.ms(stepStart);
+            if (stepMs > buildMaxStepMs) buildMaxStepMs = stepMs;
+            if (stepMs > 20) {
+                // diag#3/#4: 1 ティックの作業が予定（4ms）を大きく超えた＝カクつきの可能性
+                Diag.warn(3, "Catalog build step took {}ms (budget 4ms)", stepMs);
+            }
         } catch (Throwable t) {
             // 個々の作業は Build 内で捕まえているので、ここに来るのは想定外
             Wei.LOGGER.error("Wynncraft item catalog build crashed", t);
@@ -133,7 +196,14 @@ public final class WynnDataWatcher {
         WynnCatalog.publish(finished.result());
         // 不完全でも記録する（件数の監視で毎秒作り直さないため）。不完全なら下で再試行を予約する
         builtDataSignature = buildTargetSignature;
+        addEmiReloadReason("catalogBuilt");
         emiReloadPending = true;
+        Diag.log(3, "Catalog build DONE: {} items, complete={}, {}ms over {} ticks, max step {}ms",
+                finished.size(), finished.complete(), Diag.ms(buildStartNanos), buildTicks, buildMaxStepMs);
+        try {
+            favoritesRevisionAtBuild = com.wynntils.core.components.Services.Favorites.getRevision();
+        } catch (Throwable ignored) {
+        }
 
         if (finished.complete()) {
             failedAttempts = 0;
@@ -153,12 +223,15 @@ public final class WynnDataWatcher {
             return;
         }
         long delay = RETRY_DELAYS_MS[failedAttempts++];
+        // diag#5: 再試行のたびに全体の作り直しと EMI の再読み込みが起きる
+        Diag.warn(5, "Retry #{} scheduled in {}s (each retry rebuilds everything and reloads EMI)", failedAttempts, delay / 1000);
         retryAtMillis = System.currentTimeMillis() + delay;
         Wei.LOGGER.info("Retrying the Wynncraft item catalog in {} s", delay / 1000);
     }
 
     /** Wynntils のダウンロード完了（または一部失敗）時。次の確認で作り直す。 */
     public static void onWynntilsDataDownloaded() {
+        Diag.log(3, "Wynntils download event received -> rebuild requested");
         failedAttempts = 0;
         rebuildRequested = true;
     }
@@ -171,6 +244,7 @@ public final class WynnDataWatcher {
 
     /** /wei reload（設定を読み直した後）。カタログは作り直さず EMI だけ再読み込み。 */
     public static void requestEmiReload() {
+        addEmiReloadReason("command");
         boolean wynn = WynnCatalog.isOnWynncraft();
         onWynncraft = wynn;
         appliedViewSignature = wynn + "|" + WeiConfig.currentSignature();
@@ -190,6 +264,8 @@ public final class WynnDataWatcher {
 
     /** EMI のプラグインが登録に使った内容を記録する（EMI のスレッドから呼ばれる） */
     public static void markEmiRegistered(WynnCatalog catalog, String viewSignature) {
+        Diag.log(3, "EMI registered WEI: catalog={} items (current={}), view='{}' (applied='{}'), thread={}",
+                catalog.entries().size(), catalog == WynnCatalog.current(), viewSignature, appliedViewSignature, Diag.thread());
         registeredCatalog = catalog;
         registeredViewSignature = viewSignature;
         emiHasRegistered = true;

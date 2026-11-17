@@ -150,6 +150,11 @@ public final class WynnCatalog {
         return entries;
     }
 
+    /** 診断用：その瞬間の接続状態（WynnDataWatcher のキャッシュではない） */
+    public static boolean isOnWynncraftNow() {
+        return isOnWynncraft();
+    }
+
     static boolean isOnWynncraft() {
         try {
             return Managers.Connection.onServer();

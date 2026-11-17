@@ -48,6 +48,11 @@ public final class WynnLookup {
         current = lookup;
     }
 
+    /** 診断用：EMI の登録で索引ができているか */
+    public static boolean isReady() {
+        return !current.byKey.isEmpty();
+    }
+
     /** お気に入りの連動用：EMI のスタックが Wynncraft のアイテムなら、その Wynntils でのお気に入り名 */
     public static @Nullable String favoriteNameOf(Object emiIngredient) {
         if (emiIngredient instanceof WynnEmiStack stack) {

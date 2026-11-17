@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.data;
 
+import io.github.wkwk.wei.Diag;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.wynntils.core.components.Services;
@@ -59,17 +60,30 @@ public final class WynnFavoritesSync {
             }
 
             boolean changed = false;
+            int emiFavorites = EmiFavorites.favorites.size();
+            boolean emiLoaded = dev.emi.emi.runtime.EmiReloadManager.isLoaded();
             for (String name : wanted) {
                 if (added.contains(name) || Services.Favorites.isFavorite(name)) continue;
                 Services.Favorites.addFavorite(name);
                 added.add(name);
                 changed = true;
+                Diag.log(2, "Wynntils favorite ADDED '{}' (EMI favorites={}, emiLoaded={})", name, emiFavorites, emiLoaded);
             }
+            int removed = 0;
+            int trackedBefore = added.size();
             for (String name : Set.copyOf(added)) {
                 if (wanted.contains(name)) continue;
                 Services.Favorites.removeFavorite(name);
                 added.remove(name);
                 changed = true;
+                removed++;
+                Diag.log(2, "Wynntils favorite REMOVED '{}' (EMI favorites={}, WEI favorites in EMI={}, emiLoaded={}, lookup ready={})",
+                        name, emiFavorites, wanted.size(), emiLoaded, WynnLookup.isReady());
+            }
+            if (removed > 0 && removed == trackedBefore) {
+                // diag#2: 一度に全部外した＝EMI の再読み込み中や準備前に動いた疑い
+                Diag.warn(2, "Removed ALL {} tracked Wynntils favorites at once (emiLoaded={}, lookup ready={})",
+                        removed, emiLoaded, WynnLookup.isReady());
             }
             if (changed) save(added);
             failures = 0;
