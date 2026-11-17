@@ -23,7 +23,7 @@
     "java": ">=21",
     "fabric-api": "*",
     "wynntils": "*",
-    "emi": "*"
+    "wynnemi_emi": "*"
   },
   "mixins": [
     "wynnemi.mixins.json"

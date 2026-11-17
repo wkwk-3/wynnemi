@@ -14,8 +14,8 @@ repositories {
     mavenCentral()
 }
 
-// Wynntils と PF-EMI は Maven で配布されていないため、libs/ に置いた jar を参照する。
-// （README.md の「ビルド手順」を参照）
+// Wynntils は Maven で配布されていないため libs/ に置いた jar を参照する。
+// EMI はこのリポジトリの emi/（フォーク）をビルドした jar を libs/ に置く（README.md の「ビルド」を参照）。
 def libJar = { String prefix ->
     def found = fileTree("libs") { include "${prefix}*.jar" }.files
     if (found.isEmpty()) {
@@ -35,6 +35,8 @@ dependencies {
     // runClient で試したい場合は modLocalRuntime に変える。
     modCompileOnly libJar("wynntils")
     modCompileOnly libJar("emi")
+    // フォークした EMI を jar の中に同梱する（プレイヤーは Wynn EMI の jar 1 つを入れればよい）
+    include libJar("emi")
 }
 
 processResources {

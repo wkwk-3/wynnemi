@@ -3,8 +3,9 @@
 Wynntils が持っている Wynncraft のアイテムデータを EMI（EMI Port Forward）の画面に表示する Fabric 用クライアント MOD です。
 
 - 対応: Minecraft 1.21.11 / Fabric
-- 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、[EMI Port Forward](https://github.com/bostonstuddard/PF-EMI)、Fabric API
-  - どれか1つでも入っていなければ Fabric が起動を止めて不足を表示します
+- 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、Fabric API
+  - EMI は**このMODに同梱**しています（[PF-EMI](https://github.com/bostonstuddard/PF-EMI) をもとにしたフォーク。詳しくは [FORK.md](FORK.md)）。EMI や PF-EMI を別に入れる必要はなく、**一緒に入れないでください**
+  - 必要なものが足りなければ Fabric が起動を止めて不足を表示します
 
 ## できること
 
@@ -22,6 +23,7 @@ Wynntils が持っている Wynncraft のアイテムデータを EMI（EMI Port
 | クエストで **U** | クリア報酬と、使えるようになる装備 |
 | セットで **U** | メンバーの装備と、個数ごとのボーナス（セットの説明文） |
 | EMI で検索 | 名前に加えて `mythic wand`、`lv105`、`mage`、`weaponsmithing` などでも絞り込める |
+| EMI で `key:value` 検索 | Wynntils のアイテムフィルターと同じ書き方。例: `level:100-105 rarity:mythic gearType:wand rawStrength:>10 sort:rawStrength`（範囲・以上以下・並び替えに対応）。ほかの語は今までどおり EMI が検索 |
 | EMI のお気に入りに追加 | Wynntils のお気に入りにも入り、チェストや取引所で目立つ |
 
 Wynncraft に接続している間は、EMI からバニラのアイテムとレシピを隠します。
@@ -64,12 +66,11 @@ Wynncraft に接続している間は、EMI からバニラのアイテムとレ
 
 ### GitHub Actions（おすすめ）
 
-push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）と PF-EMI（Modrinth）を取ってきてビルドし、jar を Artifacts に上げます。
+push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）を取ってきて、`emi/`（EMI のフォーク）→ MOD 本体の順にビルドし、jar を Artifacts に上げます。EMI のフォークは MOD 本体の jar に同梱されます。
 
 ### 手元でビルド
 
-1. `libs/` に次の 2 つを置く（ファイル名の先頭が一致すれば OK）
-   - `wynntils*.jar` … Wynntils の Fabric 版（1.21.11）
-   - `emi*.jar` … EMI Port Forward の Fabric 版（1.21.11）
-2. `./gradlew build`
-3. `build/libs/wynnemi-<version>.jar` を mods フォルダへ
+1. `libs/wynntils*.jar` に Wynntils の Fabric 版（1.21.11）を置く
+2. `cd emi && ./gradlew :fabric:remapJar` で EMI のフォークをビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/emi.jar` としてコピー
+3. ルートで `./gradlew build`
+4. `build/libs/wynnemi-<version>.jar` を mods フォルダへ（EMI は同梱済み）

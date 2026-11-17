@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "emi",
   "version": "${version}",
-  "name": "PF-EMI",
-  "description": "ProjectFlint-maintained EMI fork for Minecraft 1.21.11, based on EMI by Emi.",
+  "name": "Wynn EMI Core (EMI fork)",
+  "description": "EMI fork used by Wynn EMI. Based on PF-EMI (ProjectFlint) and EMI by Emi. Adds search extension hooks.",
   "authors": [
     "Emi"
   ],
@@ -11,7 +11,7 @@
     "ProjectFlint"
   ],
   "contact": {
-    "sources": "https://github.com/bostonstuddard/PF-EMI"
+    "sources": "https://github.com/wkwk-3/wynnemi"
   },
   "license": "MIT",
   "icon": "icon.png",
@@ -45,5 +45,8 @@
     "fabricloader": ">=0.18.1",
     "fabric": ">=0.141.6+1.21.11",
     "minecraft": "1.21.11"
-  }
+  },
+  "provides": [
+    "wynnemi_emi"
+  ]
 }

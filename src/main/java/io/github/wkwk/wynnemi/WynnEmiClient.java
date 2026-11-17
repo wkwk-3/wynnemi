@@ -1,8 +1,10 @@
 package io.github.wkwk.wynnemi;
 
+import dev.emi.emi.fork.EmiForkApi;
 import io.github.wkwk.wynnemi.data.WynnDataWatcher;
 import io.github.wkwk.wynnemi.data.WynnFavoritesSync;
 import io.github.wkwk.wynnemi.data.WynntilsDownloadListener;
+import io.github.wkwk.wynnemi.emi.WynnSearchExtension;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -23,6 +25,9 @@ public final class WynnEmiClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         WynnEmiConfig.load();
+
+        // EMI の検索欄で Wynntils のフィルター（level:100-105 rarity:mythic sort:... など）を使えるようにする（フォークの API）
+        EmiForkApi.registerSearchExtension(new WynnSearchExtension());
 
         // Wynntils のデータは起動後に非同期でダウンロードされる。ダウンロード完了イベント（主）と
         // 件数の監視（保険）で、揃ったら・変わったらカタログを作り直して EMI を再読み込みする
