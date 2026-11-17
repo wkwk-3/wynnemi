@@ -77,3 +77,8 @@ push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）�
 2. `cd emi && ./gradlew :fabric:remapJar` で EMI のフォークをビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/wei-emi-bundled.jar` としてコピー
 3. ルートで `./gradlew build`
 4. `build/libs/wei-<version>.jar` を mods フォルダへ（EMI は同梱済み）
+
+## 既知の問題
+
+- Tol・Nii などの一部ルーンが一覧に出ず、手持ちのルーンで R/U が効かない
+- MOD 一覧のアイコンが未設定
