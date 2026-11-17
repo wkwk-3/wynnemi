@@ -4,6 +4,7 @@ import com.wynntils.models.profession.type.ProfessionType;
 import com.wynntils.models.wynnitem.type.ItemObtainInfo;
 import com.wynntils.models.wynnitem.type.ItemObtainType;
 import dev.emi.emi.api.EmiEntrypoint;
+import dev.emi.emi.api.EmiInitRegistry;
 import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
@@ -24,13 +25,18 @@ import net.minecraft.world.item.Items;
 @EmiEntrypoint
 public final class WynnEmiPlugin implements EmiPlugin {
     @Override
+    public void initialize(EmiInitRegistry registry) {
+        // お気に入り保存用（PF-EMI では EmiRegistry 側の登録は非推奨）
+        registry.addIngredientSerializer(WynnEmiStack.class, new WynnEmiStackSerializer());
+    }
+
+    @Override
     public void register(EmiRegistry registry) {
         WynnDataWatcher.markEmiRegistered();
 
         WynnEmiConfig config = WynnEmiConfig.get();
         WynnCatalog catalog = WynnCatalog.current();
 
-        registry.addIngredientSerializer(WynnEmiStack.class, new WynnEmiStackSerializer());
         WynnEmiStackSerializer.clear();
 
         // 4. Wynncraft にいる間はバニラのアイテム・レシピを隠す（無効化は全プラグインの後に適用される）

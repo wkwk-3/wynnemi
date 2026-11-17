@@ -3,7 +3,7 @@
 Wynntils が持っている Wynncraft のアイテムデータを EMI（EMI Port Forward）の画面に表示する Fabric 用クライアント MOD です。
 
 - 対応: Minecraft 1.21.11 / Fabric
-- 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、[EMI Port Forward](https://modrinth.com/mod/pf-emi)、Fabric API
+- 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、[EMI Port Forward](https://github.com/bostonstuddard/PF-EMI)、Fabric API
   - どれか1つでも入っていなければ Fabric が起動を止めて不足を表示します
 
 ## できること
@@ -38,7 +38,7 @@ Wynncraft に接続している間は、EMI からバニラのアイテムとレ
 - **お気に入り**: EMI のお気に入りに登録でき、キーで保存されます（Wynntils 側でアイテム名が変わると外れます）。
 - **入手元データの限界**: Wynntils のデータは「種類＋名前」だけで、ドロップ率・座標・必要条件はありません。クラウドソースのため「入手方法不明」も多めです。
 - **Wynntils の内部クラスに依存**: `Guide*ItemStack` は Wynntils の公開 API ではないため、Wynntils の更新で壊れることがあります。種類ごとに例外を捕まえているので、1 種類が壊れても他は表示されます（ログに `WynnEMI` で警告）。
-- **PF-EMI の mod ID**: 本家 EMI と同じ `emi` を前提にしています。違う場合は `fabric.mod.json` の `depends` を直してください。
+- **PF-EMI**: [bostonstuddard/PF-EMI](https://github.com/bostonstuddard/PF-EMI) の `1.21.11` ブランチ（mod ID `emi`、EMI 1.1.23 ベース）の API に合わせています。
 
 ## ビルド
 

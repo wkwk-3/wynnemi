@@ -32,6 +32,13 @@ jobs:
 
       - name: Download EMI Port Forward (Fabric, ${{ env.MC_VERSION }})
         run: |
+          # まず PF-EMI の GitHub Release（1.21.11 用タグ）、無ければ Modrinth
+          if gh release download "pf19+${MC_VERSION}" -R bostonstuddard/PF-EMI -p '*abric*.jar' -D dl-emi 2>/dev/null \
+             && ls dl-emi/*.jar >/dev/null 2>&1; then
+            cp "$(ls dl-emi/*.jar | grep -vi -e sources -e api | head -1)" libs/emi.jar
+            echo "PF-EMI from GitHub Release: $(ls dl-emi)"
+            exit 0
+          fi
           url=$(curl -fsSL "https://api.modrinth.com/v2/project/pf-emi/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
             | jq -r '.[0].files | (map(select(.primary)) + .)[0].url')
           echo "PF-EMI: $url"
