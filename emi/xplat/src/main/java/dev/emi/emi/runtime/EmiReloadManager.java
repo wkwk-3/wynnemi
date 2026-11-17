@@ -34,7 +34,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 
 public class EmiReloadManager {
-	private static int loadedResourcesMask = 0;
+	private static volatile int loadedResourcesMask = 0;
+	// [WEI fork] diag#12: some servers (Wynncraft) only send one of the two sync signals, so EMI would wait forever.
+	// If the other signal does not arrive within this delay, reload anyway.
+	private static final long SYNC_FALLBACK_DELAY_MS = 3_000;
+	private static volatile long syncGeneration = 0;
 	private static volatile boolean clear = false, restart = false;
 	// 0 - empty, 1 - reloading, 2 - loaded, -1 - error
 	private static volatile int status = 0;
@@ -51,9 +55,12 @@ public class EmiReloadManager {
 		if (loadedResourcesMask == 3) {
 			EmiLog.info("Recipes synchronized, reloading EMI");
 			loadedResourcesMask = 0;
+			syncGeneration++;
+			EmiForkDiag.log(12, "Both sync signals received (tags last) -> normal reload");
 			reload();
 		} else {
 			EmiLog.info("Recipes synchronized, waiting for tags to reload EMI...");
+			scheduleSyncFallback("tags");
 		}
 	}
 
@@ -62,15 +69,45 @@ public class EmiReloadManager {
 		if (loadedResourcesMask == 3) {
 			EmiLog.info("Tags synchronized, reloading EMI");
 			loadedResourcesMask = 0;
+			syncGeneration++;
+			EmiForkDiag.log(12, "Both sync signals received (recipes last) -> normal reload");
 			reload();
 		} else {
 			EmiLog.info("Tags synchronized, waiting for recipes to reload EMI...");
+			scheduleSyncFallback("recipes");
 		}
+	}
+
+	// [WEI fork] diag#12: reload after a delay if only one of the two sync signals arrives
+	private static void scheduleSyncFallback(String received) {
+		long generation = ++syncGeneration;
+		EmiForkDiag.log(12, "Only the " + received + " signal arrived; reloading in " + SYNC_FALLBACK_DELAY_MS + "ms unless the other one comes");
+		Thread timer = new Thread(() -> {
+			try {
+				Thread.sleep(SYNC_FALLBACK_DELAY_MS);
+			} catch (InterruptedException e) {
+				return;
+			}
+			synchronized (EmiReloadManager.class) {
+				if (generation != syncGeneration || loadedResourcesMask == 0 || loadedResourcesMask == 3) {
+					EmiForkDiag.log(12, "Sync fallback cancelled (generation " + generation + "/" + syncGeneration + ", mask=" + loadedResourcesMask + ")");
+					return;
+				}
+				EmiLog.info("Only one sync signal received (mask=" + loadedResourcesMask + "), reloading EMI anyway");
+				EmiForkDiag.log(12, "Sync fallback FIRED (mask=" + loadedResourcesMask + ") -> reload");
+				loadedResourcesMask = 0;
+				syncGeneration++;
+			}
+			reload();
+		}, "EMI sync fallback");
+		timer.setDaemon(true);
+		timer.start();
 	}
 
 	public static void clear() {
 		synchronized (EmiReloadManager.class) {
 			loadedResourcesMask = 0;
+			syncGeneration++; // [WEI fork] cancel a pending sync fallback
 			clear = true;
 			status = 0;
 			reloadWorry = Long.MAX_VALUE;

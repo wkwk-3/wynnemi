@@ -12,6 +12,9 @@ final class StartupDiag {
         if (!Diag.enabled()) return;
         try {
             FabricLoader loader = FabricLoader.getInstance();
+            // テストに使った jar を見分けるため
+            Diag.log(10, "WEI version: {}", loader.getModContainer("wei")
+                    .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?"));
             Optional<ModContainer> emi = loader.getModContainer("emi");
             if (emi.isEmpty()) {
                 Diag.warn(10, "No mod with id 'emi' is loaded");

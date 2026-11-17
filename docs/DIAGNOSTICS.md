@@ -17,6 +17,9 @@
 | 8 | 否定が効かない | 検索で `-rarity:mythic` | `Negated WEI term ... is not supported` |
 | 9 | 説明文が古いまま | Wynntils でお気に入りの星を付け外しする | `Wynntils favorites changed after the catalog was built` |
 | 10 | 同梱のフォークではない EMI が読み込まれる | 起動するだけ | `EMI loaded: name=... containedIn=...`（`containedIn=wei` なら同梱のフォーク）、`wei_emi provided: false` |
+| 12 | Wynncraft で EMI が読み込まれない（タグかレシピの片方しか届かない） | ログインする | `Only the tags signal arrived; reloading in 3000ms` の後に `Sync fallback FIRED`、続いて `EMI reload requested` と `EMI reload finished`。`Sync fallback cancelled` だけで終わり、`EMI reload finished` が無ければ未解決 |
 | 11 | EMI の再読み込みの呼び出しに失敗する | ログインなど | `EMI reload method not found` |
+
+起動直後の `diag#10` に `WEI version: 1.0.0-test.2+1.21.11` のように出るので、どの jar でテストしたか確認できます。
 
 ログを共有するときは、`grep "WEI diag" logs/latest.log` の結果をそのまま貼ってもらえれば足ります。
