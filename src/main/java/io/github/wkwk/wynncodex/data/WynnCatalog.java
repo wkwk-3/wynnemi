@@ -61,6 +61,29 @@ public final class WynnCatalog {
     /** 未鑑定ボックスの系統（装備の種類 × レアリティ）。中身の候補はこの系統と必要レベルで決まる */
     public record BoxFamily(String key, Component displayName) {}
 
+    /**
+     * 公式 API のアイテム検索（https://docs.wynncraft.com/modules/item-recipe/search-items）と同じ分類。
+     * 値は API の表記（小文字・camelCase）に揃え、検索の {@code type:} {@code tier:} などで使う。
+     */
+    public record ApiFacets(
+            /** weapon / armour / accessory / tome / charm / tool / ingredient / material */
+            @Nullable String type,
+            /** 武器種・防具部位・アクセサリー種・トーム種（weaponTome など）・ツール種（rod など） */
+            @Nullable String subType,
+            /** 装備: normal〜mythic、素材: tier_0〜tier_3 */
+            @Nullable String tier,
+            /** superSlow〜superFast */
+            @Nullable String attackSpeed,
+            int level,
+            /** 製作職業（素材）または採集職業（マテリアル・ツール） */
+            Set<String> professions,
+            /** ID の API 名（小文字）→ 取りうる最大値。並び替えに使う */
+            Map<String, Integer> identifications,
+            /** Major ID の名前（英数字だけの小文字） */
+            Set<String> majorIds) {
+        public static final ApiFacets NONE = new ApiFacets(null, null, null, null, 0, Set.of(), Map.of(), Set.of());
+    }
+
     /** アイテムごとの追加情報（カタログ構築時に Wynntils から取り出しておく） */
     public record Extra(
             @Nullable List<ItemObtainInfo> obtain,
@@ -74,8 +97,9 @@ public final class WynnCatalog {
             @Nullable String favoriteName,
             @Nullable BoxFamily boxFamily,
             /** 装備に必要なクエスト（Wynntils の生の名前） */
-            @Nullable String requiredQuest) {
-        static final Extra NONE = new Extra(null, null, null, 0, null, null, null, null);
+            @Nullable String requiredQuest,
+            ApiFacets facets) {
+        static final Extra NONE = new Extra(null, null, null, 0, null, null, null, null, ApiFacets.NONE);
     }
 
     public record Entry(
@@ -94,7 +118,8 @@ public final class WynnCatalog {
             @Nullable String favoriteName,
             @Nullable BoxFamily boxFamily,
             /** 表示用に解決済みのクエスト名 */
-            @Nullable String requiredQuest) {}
+            @Nullable String requiredQuest,
+            ApiFacets facets) {}
 
     /** セット装備。メンバーはカタログのキー */
     public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
@@ -193,7 +218,8 @@ public final class WynnCatalog {
                                 canBeInBox(g.metaInfo().preIdentified(), obtain)
                                         ? boxFamily(g.type().name(), g.tier().name(), g.tier().getName())
                                         : null,
-                                g.requirements().quest().filter(q -> !q.isBlank()).orElse(null)));
+                                g.requirements().quest().filter(q -> !q.isBlank()).orElse(null),
+                                ApiFacetsFactory.gear(g)));
                     })
                     .toList());
 
@@ -202,7 +228,7 @@ public final class WynnCatalog {
                             Models.Ingredient.getObtainInfo(i), i.professions(), null, i.level(),
                             "ingredient lv" + i.level() + " lv." + i.level() + " " + "*".repeat(Math.max(0, i.tier()))
                                     + " t" + i.tier() + professionWords(i.professions()),
-                            i.name(), null, null)))
+                            i.name(), null, null, ApiFacetsFactory.ingredient(i))))
                     .toList());
 
             group("material", () -> Models.Profession.getAllMaterialInfos()
@@ -213,28 +239,29 @@ public final class WynnCatalog {
                                     new Extra(null, null, m.professionType(), m.level(),
                                             "material lv" + m.level() + " lv." + m.level() + " t" + t + " "
                                                     + m.professionType().getDisplayName().toLowerCase(Locale.ROOT),
-                                            m.name(), null, null)));
+                                            m.name(), null, null, ApiFacetsFactory.material(m))));
                         }
                     })
                     .toList());
 
             group("tool", () -> Models.Profession.getAllGatheringToolInfos()
                     .map(t -> (Runnable) () -> add("tool", t.name(), new GuideGatheringToolItemStack(t),
-                            new Extra(null, null, null, t.level(), "tool lv" + t.level(), t.name(), null, null)))
+                            new Extra(null, null, null, t.level(), "tool lv" + t.level(), t.name(), null, null,
+                                    ApiFacetsFactory.tool(t))))
                     .toList());
 
             group("charm", () -> Models.Rewards.getAllCharmInfos()
                     .map(c -> (Runnable) () -> add("charm", c.name(), new GuideCharmItemStack(c), new Extra(
                             Models.Rewards.getCharmObtainInfo(c), null, null, c.requirements().level(),
                             "charm " + c.tier().getName().toLowerCase(Locale.ROOT) + " lv" + c.requirements().level(),
-                            c.name(), null, null)))
+                            c.name(), null, null, ApiFacetsFactory.charm(c))))
                     .toList());
 
             group("tome", () -> Models.Rewards.getAllTomeInfos()
                     .map(t -> (Runnable) () -> add("tome", t.name(), new GuideTomeItemStack(t), new Extra(
                             Models.Rewards.getTomeObtainInfo(t), null, null, t.requirements().level(),
                             "tome " + t.tier().getName().toLowerCase(Locale.ROOT) + " lv" + t.requirements().level(),
-                            t.name(), null, null)))
+                            t.name(), null, null, ApiFacetsFactory.tome(t))))
                     .toList());
 
             group("aspect", () -> Models.Aspect.getAllAspectInfos()
@@ -245,7 +272,7 @@ public final class WynnCatalog {
                                     new Extra(null, null, null, 0,
                                             "aspect t" + t + " " + a.gearTier().getName().toLowerCase(Locale.ROOT)
                                                     + (a.classType() == null ? "" : " " + a.classType().name().toLowerCase(Locale.ROOT)),
-                                            a.name(), null, null)));
+                                            a.name(), null, null, ApiFacets.NONE)));
                         }
                     })
                     .toList());
@@ -392,7 +419,8 @@ public final class WynnCatalog {
                     extra.aliases(),
                     favoriteName,
                     extra.boxFamily(),
-                    quest));
+                    quest,
+                    extra.facets()));
         }
 
         private void addSet(String name, List<String> itemNames, Map<Integer, SetBonus> bonuses) {

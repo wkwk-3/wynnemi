@@ -26,6 +26,16 @@ public final class Names {
         return NON_ALNUM.matcher(strip(name).toLowerCase(Locale.ROOT)).replaceAll(" ").trim();
     }
 
+    /** 英数字だけの小文字（"Hurricane's Eye" → "hurricaneseye"）。表記の違う名前を突き合わせるため */
+    public static String compact(String s) {
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLetterOrDigit(c)) sb.append(Character.toLowerCase(c));
+        }
+        return sb.toString();
+    }
+
     /** MASTERY_TOME → Mastery Tome */
     public static String titleCase(String enumName) {
         StringBuilder sb = new StringBuilder();

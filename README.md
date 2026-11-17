@@ -23,7 +23,8 @@ Wynncraft のアイテム図鑑 MOD です。Wynntils が持っているアイ�
 | クエストで **U** | クリア報酬と、使えるようになる装備 |
 | セットで **U** | メンバーの装備と、個数ごとのボーナス（セットの説明文） |
 | EMI で検索 | 名前に加えて `mythic wand`、`lv105`、`mage`、`weaponsmithing` などでも絞り込める |
-| EMI で `key:value` 検索 | Wynntils のアイテムフィルターと同じ書き方。例: `level:100-105 rarity:mythic gearType:wand rawStrength:>10 sort:rawStrength`（範囲・以上以下・並び替えに対応）。ほかの語は今までどおり EMI が検索 |
+| EMI で公式 API と同じ書き方 | [公式アイテム検索 API](https://docs.wynncraft.com/modules/item-recipe/search-items) と同じキー: `type:weapon`（`type:wand` など詳細も可）、`tier:mythic`、`attackSpeed:superFast`、`levelRange:100-105`（`>=100` なども可）、`professions:cooking`、`identifications:rawStrength`、`majorIds:...`。カンマ区切りで「または」（`tier:legendary,mythic`）。`identifications` を指定すると公式サイトと同じく最初の ID の値が大きい順 |
+| EMI で Wynntils の書き方 | Wynntils のアイテムフィルターと同じ書き方。例: `level:100-105 rarity:mythic gearType:wand rawStrength:>10 sort:rawStrength`（ID の値の範囲・以上以下・並び替えに対応）。公式 API と同じ名前のキー（`tier`・`attackSpeed`）は公式 API の意味が優先。ほかの語は今までどおり EMI が検索 |
 | EMI のお気に入りに追加 | Wynntils のお気に入りにも入り、チェストや取引所で目立つ |
 
 Wynncraft に接続している間は、EMI からバニラのアイテムとレシピを隠します。
