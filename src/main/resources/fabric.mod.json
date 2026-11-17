@@ -5,7 +5,7 @@
   "name": "Wynn EMI",
   "description": "Shows Wynncraft items from Wynntils in EMI, with where-to-obtain and profession-use recipes.",
   "authors": ["wkwk"],
-  "license": "LGPL-3.0-only",
+  "license": "MIT",
   "environment": "client",
   "entrypoints": {
     "client": ["io.github.wkwk.wynnemi.WynnEmiClient"],
