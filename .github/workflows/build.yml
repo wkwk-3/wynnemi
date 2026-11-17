@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      WYNNTILS_TAG: v4.2.17
+      MC_VERSION: 1.21.11
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Wynntils と PF-EMI は Maven に無いので、ビルド時に libs/ へ取ってくる
+      - name: Download Wynntils (Fabric)
+        run: |
+          mkdir -p libs
+          gh release download "$WYNNTILS_TAG" -R Wynntils/Wynntils -p '*abric*.jar' -D dl-wynntils
+          ls dl-wynntils
+          cp "$(ls dl-wynntils/*.jar | grep -vi sources | head -1)" libs/wynntils.jar
+
+      - name: Download EMI Port Forward (Fabric, ${{ env.MC_VERSION }})
+        run: |
+          url=$(curl -fsSL "https://api.modrinth.com/v2/project/pf-emi/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
+            | jq -r '.[0].files | (map(select(.primary)) + .)[0].url')
+          echo "PF-EMI: $url"
+          curl -fsSL "$url" -o libs/emi.jar
+
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew build --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wynnemi
+          path: build/libs/*.jar
