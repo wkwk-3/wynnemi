@@ -24,8 +24,10 @@ import org.jetbrains.annotations.Nullable;
 public final class WynnventoryPrices {
     private static final String SNAPSHOT = "com.wynnventory.model.item.trademarket.TrademarketItemSnapshot";
 
-    private static boolean initialized;
-    private static boolean available;
+    private static volatile boolean initialized;
+    private static volatile boolean available;
+    /** 価格の取り出し（getLowestPrice など）。毎回探すと重いので覚えておく */
+    private static final Map<String, Method> GETTERS = new java.util.concurrent.ConcurrentHashMap<>();
     private static Method resolveSnapshot;
     private static @Nullable Method resolveGearBox;
     private static Method live;
@@ -33,10 +35,15 @@ public final class WynnventoryPrices {
 
     private WynnventoryPrices() {}
 
-    public static synchronized boolean isAvailable() {
+    /** スロットの描画ごとに呼ばれるので、2回目以降は volatile の読み取りだけで返す */
+    public static boolean isAvailable() {
         if (!initialized) {
-            initialized = true;
-            init();
+            synchronized (WynnventoryPrices.class) {
+                if (!initialized) {
+                    init();
+                    initialized = true;
+                }
+            }
         }
         return available;
     }
@@ -105,7 +112,13 @@ public final class WynnventoryPrices {
             case "highest" -> "getHighestPrice";
             default -> "getLowestPrice";
         };
-        Object value = summary.getClass().getMethod(getter).invoke(summary);
+        Class<?> type = summary.getClass();
+        Method method = GETTERS.get(type.getName() + "#" + getter);
+        if (method == null) {
+            method = type.getMethod(getter);
+            GETTERS.put(type.getName() + "#" + getter, method);
+        }
+        Object value = method.invoke(summary);
         if (value instanceof Number n && n.doubleValue() > 0) return OptionalLong.of(Math.round(n.doubleValue()));
         return OptionalLong.empty();
     }

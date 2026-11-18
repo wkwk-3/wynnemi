@@ -31,12 +31,16 @@ import net.neoforged.bus.api.SubscribeEvent;
  * 取引所の価格が基準以上のアイテムのスロットに色を付け、最初に見つかったときに1回だけ音を鳴らす。
  */
 public final class LootHighlight {
-    /** 価格が取得中のアイテムを見直す間隔 */
-    private static final long RECHECK_NANOS = 250_000_000L;
+    /** 価格が取得中のアイテムを見直す間隔（最初は短く、見つからないたびに倍にする） */
+    private static final long RECHECK_FIRST_NANOS = 250_000_000L;
+    private static final long RECHECK_MAX_NANOS = 8_000_000_000L;
+    /** 1つのチェストで覚えておくアイテムの上限（中身の送り直しで増え続けないように） */
+    private static final int MAX_CACHED = 512;
 
     private static boolean registered;
 
-    private record Price(OptionalLong value, long checkedAt) {}
+    /** value が empty なら nextCheckAt まで聞き直さない（売れない GUI のアイテムなどを毎フレーム聞かない） */
+    private record Price(OptionalLong value, long nextCheckAt, long backoff) {}
 
     private final Map<ItemStack, Price> prices = new IdentityHashMap<>();
     /** 同じ画面で鳴らしすぎないための間隔 */
@@ -94,8 +98,13 @@ public final class LootHighlight {
         }
 
         OptionalLong price = priceOf(stack, config.lootHighlightPrice);
+        if (price.isEmpty()) return;
         long threshold = Math.round(config.lootHighlightThresholdLe * 4096);
-        if (price.isEmpty() || price.getAsLong() < threshold) return;
+        if (price.getAsLong() < threshold) {
+            // 安いものに入れ替わったスロットは、また高額品が入ったときに鳴らせるよう忘れる
+            flagged.remove(slot.index);
+            return;
+        }
 
         int x = slot.x;
         int y = slot.y;
@@ -119,14 +128,16 @@ public final class LootHighlight {
     private OptionalLong priceOf(ItemStack stack, String priceType) {
         long now = System.nanoTime();
         Price cached = prices.get(stack);
-        if (cached != null && (cached.value().isPresent() || now - cached.checkedAt() < RECHECK_NANOS)) {
+        if (cached != null && (cached.value().isPresent() || now < cached.nextCheckAt())) {
             return cached.value();
         }
+        if (prices.size() >= MAX_CACHED) prices.clear();
         Object gearBox = null;
         Optional<WynnItem> item = Models.Item.getWynnItem(stack);
         if (item.isPresent() && item.get() instanceof GearBoxItem box) gearBox = box;
         OptionalLong value = WynnventoryPrices.priceOf(stack, gearBox, priceType);
-        prices.put(stack, new Price(value, now));
+        long backoff = cached == null ? RECHECK_FIRST_NANOS : Math.min(RECHECK_MAX_NANOS, cached.backoff() * 2);
+        prices.put(stack, new Price(value, now + backoff, backoff));
         return value;
     }
 }

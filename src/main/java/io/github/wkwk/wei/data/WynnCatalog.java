@@ -234,10 +234,11 @@ public final class WynnCatalog {
 
         Build() {
             // 入手元は API の情報と有志のデータを合わせたもの（Wynntils のツールチップと同じ）を使う
+            // 外すかどうかの判定も各アイテムの処理の中で行う（計画の段階で 5000 件を一度に見ると1ティックが重くなる）
             group("gear", () -> Models.Gear.getAllGearInfos()
-                    .filter(g -> !isHiddenGear(g))
                     .map(g -> (Runnable) () -> {
                         List<ItemObtainInfo> obtain = Models.Gear.getObtainInfo(g);
+                        if (isHiddenGear(g, obtain)) return;
                         int level = g.requirements().level();
                         add("gear", g.name(), new GuideGearItemStack(g), new Extra(
                                 obtain, null, null, level,
@@ -504,8 +505,8 @@ public final class WynnCatalog {
             return gone;
         }
 
-        private boolean isHiddenGear(com.wynntils.models.gear.type.GearInfo g) {
-            if (isDiscontinued("gear", g.name(), Models.Gear.getObtainInfo(g))) return true;
+        private boolean isHiddenGear(com.wynntils.models.gear.type.GearInfo g, List<ItemObtainInfo> obtain) {
+            if (isDiscontinued("gear", g.name(), obtain)) return true;
             if (g.metaInfo().restrictions() == com.wynntils.models.gear.type.GearRestrictions.QUEST_ITEM) {
                 countHidden("questItem");
                 return true;

@@ -107,17 +107,17 @@ public final class WeiSearchScreen extends Screen {
         int tx = x;
         int ty = y;
         for (String tier : tierList) {
-            int w = Math.max(30, font.width(tier) + 10);
+            boolean on = tiers.contains(tier);
+            int w = Math.max(30, font.width(tier) + 10) + (on ? 10 : 0);
             if (tx + w > x + 250) {
                 tx = x;
                 ty += 22;
             }
-            boolean on = tiers.contains(tier);
             addRenderableWidget(Button.builder(Component.literal((on ? "§a✔ " : "") + tier), b -> {
                 if (!tiers.remove(tier)) tiers.add(tier);
                 rebuildWidgets();
-            }).bounds(tx, ty, w + (on ? 10 : 0), 20).build());
-            tx += w + (on ? 10 : 0) + 2;
+            }).bounds(tx, ty, w, 20).build());
+            tx += w + 2;
         }
         y = (tierList.length == 0 ? y : ty + 24);
 
@@ -241,7 +241,12 @@ public final class WeiSearchScreen extends Screen {
         if (!tiers.isEmpty()) parts.add("tier:" + String.join(",", tiers));
         if (!attackSpeed.isEmpty()) parts.add("attackSpeed:" + attackSpeed);
         if (!profession.isEmpty()) parts.add("professions:" + profession);
-        if (!levelMin.isEmpty() && !levelMax.isEmpty()) parts.add("levelRange:" + levelMin + "-" + levelMax);
+        if (!levelMin.isEmpty() && !levelMax.isEmpty()) {
+            // 下限と上限が逆なら入れ替える
+            int a = parseLevel(levelMin);
+            int b = parseLevel(levelMax);
+            parts.add("levelRange:" + Math.min(a, b) + "-" + Math.max(a, b));
+        }
         else if (!levelMin.isEmpty()) parts.add("levelRange:>=" + levelMin);
         else if (!levelMax.isEmpty()) parts.add("levelRange:<=" + levelMax);
         String idList = list(ids);
@@ -296,15 +301,27 @@ public final class WeiSearchScreen extends Screen {
         name = String.join(" ", rest);
     }
 
+    /** 候補の一覧は一覧（カタログ）が同じ間は使い回す */
+    private static WynnCatalog cachedFor;
+    private static List<String> cachedIds = List.of();
+    private static List<String> cachedMajorIds = List.of();
+
     private void collectKnownNames() {
+        WynnCatalog catalog = WynnCatalog.current();
+        if (catalog == cachedFor) {
+            knownIds = cachedIds;
+            knownMajorIds = cachedMajorIds;
+            return;
+        }
         Set<String> idNames = new TreeSet<>();
         Set<String> majors = new TreeSet<>();
-        for (WynnCatalog.Entry e : WynnCatalog.current().entries()) {
+        for (WynnCatalog.Entry e : catalog.entries()) {
             idNames.addAll(e.facets().identifications().keySet());
             majors.addAll(e.facets().majorIds());
         }
-        knownIds = List.copyOf(idNames);
-        knownMajorIds = List.copyOf(majors);
+        knownIds = cachedIds = List.copyOf(idNames);
+        knownMajorIds = cachedMajorIds = List.copyOf(majors);
+        cachedFor = catalog;
     }
 
     private void updateSuggestions() {
@@ -337,6 +354,14 @@ public final class WeiSearchScreen extends Screen {
         String head = comma < 0 ? "" : text.substring(0, comma + 1) + " ";
         suggestTarget.setValue(head + value + ", ");
         setFocused(suggestTarget);
+    }
+
+    private static int parseLevel(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static String list(String raw) {
