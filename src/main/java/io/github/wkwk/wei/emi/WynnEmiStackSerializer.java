@@ -35,7 +35,13 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
         if (element != null && element.isJsonObject()) {
             JsonObject json = element.getAsJsonObject();
             if (json.has("key")) {
-                WynnEmiStack stack = REGISTERED.get(json.get("key").getAsString());
+                String key = json.get("key").getAsString();
+                WynnEmiStack stack = REGISTERED.get(key);
+                // 1.0.1 でアスペクトをティアごと（aspect/名前 T2）から1件（aspect/名前）にまとめた。古いキーも読めるようにする
+                if (stack == null) {
+                    String legacy = legacyKey(key);
+                    if (legacy != null) stack = REGISTERED.get(legacy);
+                }
                 if (stack != null) return stack.copy();
                 // diag#1: ここで空を返すと EMI はそのお気に入り（非表示設定など）を捨てる
                 Diag.warn(1, "Deserialize MISS for key '{}' (registered stacks: {}, catalog items: {}, thread={})",
@@ -44,6 +50,12 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
             }
         }
         return EmiStack.EMPTY;
+    }
+
+    /** 古い形式のキーを今の形にする。変える必要が無ければ null */
+    public static @org.jetbrains.annotations.Nullable String legacyKey(String key) {
+        if (key.startsWith("aspect/") && key.matches(".* T\\d+$")) return key.substring(0, key.lastIndexOf(" T"));
+        return null;
     }
 
     @Override

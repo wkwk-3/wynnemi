@@ -62,6 +62,8 @@ public final class WynnFavoritesSync {
                 if (name != null) wanted.add(name);
             }
 
+            // 読めなかったお気に入り（一覧から外したアイテムなど）は EMI 側に残っているので、Wynntils からも外さない
+            Set<String> keep = unresolvedNames();
             boolean changed = false;
             int emiFavorites = EmiFavorites.favorites.size();
             boolean emiLoaded = dev.emi.emi.runtime.EmiReloadManager.isLoaded();
@@ -75,7 +77,7 @@ public final class WynnFavoritesSync {
             int removed = 0;
             int trackedBefore = added.size();
             for (String name : Set.copyOf(added)) {
-                if (wanted.contains(name)) continue;
+                if (wanted.contains(name) || keep.contains(name)) continue;
                 Services.Favorites.removeFavorite(name);
                 added.remove(name);
                 changed = true;
@@ -98,6 +100,24 @@ public final class WynnFavoritesSync {
                 Wei.LOGGER.warn("Favorites sync to Wynntils disabled", t);
             }
         }
+    }
+
+    /** EMI が読めずに保持しているお気に入りのうち WEI のものを、Wynntils のお気に入りの名前の候補にする */
+    private static Set<String> unresolvedNames() {
+        Set<String> names = new HashSet<>();
+        for (com.google.gson.JsonObject json : EmiFavorites.getUnresolvedFavorites()) {
+            try {
+                com.google.gson.JsonObject stack = json.getAsJsonObject("stack");
+                if (stack == null || !stack.has("key")) continue;
+                String key = stack.get("key").getAsString();
+                String name = key.substring(key.indexOf('/') + 1).replaceAll("#\\d+$", "");
+                names.add(name);
+                // マテリアル・アスペクトのキーは「名前 T1」。Wynntils のお気に入りはティアなしの名前
+                names.add(name.replaceAll(" T\\d+$", ""));
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return names;
     }
 
     private static Set<String> load() {

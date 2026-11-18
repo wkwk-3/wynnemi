@@ -34,6 +34,10 @@ public class EmiFavorites {
 	// [WEI fork] diag#1: favorites whose stack could not be deserialized on the last load.
 	// They are written back unchanged on save instead of being lost.
 	private static final List<JsonObject> unresolvedFavorites = Lists.newArrayList();
+	// [WEI fork] read-only view of the kept unresolved favorites (WEI's favorites sync must not drop them)
+	public static List<JsonObject> getUnresolvedFavorites() {
+		return java.util.Collections.unmodifiableList(unresolvedFavorites);
+	}
 	public static List<EmiFavorite.Synthetic> syntheticFavorites = Lists.newArrayList();
 	public static List<EmiFavorite> favoriteSidebar = new CompoundList<>(favorites, syntheticFavorites);
 
