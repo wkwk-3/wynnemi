@@ -76,6 +76,10 @@ public final class WynnEmiStack extends EmiStack {
         return stack.getComponentsPatch();
     }
 
+    public String key() {
+        return key;
+    }
+
     @Override
     public Object getKey() {
         return "wei:" + key;
