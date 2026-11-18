@@ -95,6 +95,8 @@ public final class LootHighlight {
             prices.clear();
             flagged.clear();
             highSlots.clear();
+            categories.clear();
+            rarities.clear();
             lastSoundAt = 0;
             Diag.log(14, "Reward chest opened: {} (price={}, threshold={} LE)",
                     container.getClass().getSimpleName(), config.lootHighlightPrice, config.lootHighlightThresholdLe);
@@ -102,8 +104,10 @@ public final class LootHighlight {
 
         OptionalLong price = priceOf(stack, config.lootHighlightPrice);
         if (price.isEmpty()) return;
-        long threshold = Math.round(config.lootHighlightThresholdLe * 4096);
-        if (price.getAsLong() < threshold) {
+        // 種類ごとの基準（設定に無ければ全体の基準）。負ならその種類は通知しない
+        double thresholdLe = config.thresholdFor(categoryOf(stack).id, rarityOf(stack));
+        long threshold = Math.round(thresholdLe * 4096);
+        if (thresholdLe < 0 || price.getAsLong() < threshold) {
             // 安いものに入れ替わったスロットは、また高額品が入ったときに鳴らせるよう忘れる
             flagged.remove(slot.index);
             highSlots.remove(slot);
@@ -123,7 +127,7 @@ public final class LootHighlight {
             long now = System.nanoTime();
             if (lastSoundAt != 0 && now - lastSoundAt < SOUND_INTERVAL_NANOS) return;
             lastSoundAt = now;
-            Diag.log(14, "High value item: '{}' = {} emeralds ({} LE)", name,
+            Diag.log(14, "High value item: '{}' [{} {}] = {} emeralds ({} LE)", name, categoryOf(stack).id, rarityOf(stack),
                     price.getAsLong(), String.format("%.2f", price.getAsLong() / 4096.0));
             if (config.lootHighlightSound) {
                 Minecraft.getInstance().getSoundManager()
@@ -154,6 +158,20 @@ public final class LootHighlight {
         g.fill(x - 1, y + 15, x + 17, y + 17, color);
         g.fill(x - 1, y + 1, x + 1, y + 15, color);
         g.fill(x + 15, y + 1, x + 17, y + 15, color);
+    }
+
+    private final Map<ItemStack, LootCategory> categories = new IdentityHashMap<>();
+
+    private LootCategory categoryOf(ItemStack stack) {
+        if (categories.size() >= MAX_CACHED) categories.clear();
+        return categories.computeIfAbsent(stack, LootCategory::of);
+    }
+
+    private final Map<ItemStack, String> rarities = new IdentityHashMap<>();
+
+    private String rarityOf(ItemStack stack) {
+        if (rarities.size() >= MAX_CACHED) rarities.clear();
+        return rarities.computeIfAbsent(stack, LootCategory::rarityOf);
     }
 
     private OptionalLong priceOf(ItemStack stack, String priceType) {

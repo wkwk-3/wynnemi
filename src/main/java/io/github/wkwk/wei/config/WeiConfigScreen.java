@@ -75,6 +75,16 @@ public final class WeiConfigScreen extends Screen {
         colorBox.setValue(String.format("%08X", config.lootHighlightColor));
         colorBox.setFilter(s -> s.matches("[0-9a-fA-F]{0,8}"));
         addRenderableWidget(colorBox);
+        ry += 24;
+
+        // 種類とレア度ごとの基準は別の画面で追加・削除する
+        addRenderableWidget(Button.builder(Component.translatable("wei.config.lootRules"), b -> {
+                    applyBoxes();
+                    minecraft.setScreen(new LootRulesScreen(this));
+                })
+                .bounds(right, ry, colW, 20)
+                .tooltip(Tooltip.create(Component.translatable("wei.config.lootRules.tooltip")))
+                .build());
 
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
                 .bounds(width / 2 - 100, height - 28, 200, 20)
@@ -141,8 +151,8 @@ public final class WeiConfigScreen extends Screen {
         }
     }
 
-    @Override
-    public void onClose() {
+    /** 入力欄の値を設定に書き込む（保存はしない） */
+    private void applyBoxes() {
         try {
             double v = Double.parseDouble(thresholdBox.getValue());
             if (v >= 0) config.lootHighlightThresholdLe = v;
@@ -150,6 +160,11 @@ public final class WeiConfigScreen extends Screen {
             // 空や「.」だけなら前の値のまま
         }
         config.lootHighlightColor = parseColor(colorBox.getValue(), config.lootHighlightColor);
+    }
+
+    @Override
+    public void onClose() {
+        applyBoxes();
         WeiConfig.save();
         if (!reloadState().equals(reloadSnapshot)) WynnDataWatcher.requestEmiReload();
         minecraft.setScreen(parent);

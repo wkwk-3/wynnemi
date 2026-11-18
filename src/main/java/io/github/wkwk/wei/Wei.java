@@ -43,6 +43,28 @@ public final class Wei implements ClientModInitializer {
         return lootStatus(source);
     }
 
+    private static int addRule(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source,
+            String type, String rarity, double le) {
+        if (!"any".equalsIgnoreCase(type) && io.github.wkwk.wei.loot.LootCategory.byId(type) == null) {
+            source.sendError(Component.translatable("wei.loot.unknownType", type));
+            return 0;
+        }
+        WeiConfig.get().lootRules.add(new WeiConfig.LootRule(type, rarity.toLowerCase(java.util.Locale.ROOT), le));
+        WeiConfig.save();
+        return listRules(source);
+    }
+
+    private static int listRules(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
+        var rules = WeiConfig.get().lootRules;
+        if (rules.isEmpty()) source.sendFeedback(Component.translatable("wei.loot.rules.none"));
+        for (int i = 0; i < rules.size(); i++) {
+            var r = rules.get(i);
+            source.sendFeedback(Component.literal((i + 1) + ". " + r.type + " / " + r.rarity + " : "
+                    + (r.thresholdLe < 0 ? "off" : r.thresholdLe + " LE")));
+        }
+        return 1;
+    }
+
     private static int lootStatus(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
         WeiConfig c = WeiConfig.get();
         source.sendFeedback(Component.translatable("wei.loot.status",
@@ -50,6 +72,7 @@ public final class Wei implements ClientModInitializer {
                 Component.translatable(c.lootHighlightSound ? "options.on" : "options.off"),
                 c.lootHighlightThresholdLe, c.lootHighlightPrice,
                 Component.translatable(io.github.wkwk.wei.loot.WynnventoryPrices.isAvailable() ? "wei.loot.wynnventory.ok" : "wei.loot.wynnventory.missing")));
+        if (!c.lootRules.isEmpty()) listRules(source);
         return 1;
     }
 
@@ -94,6 +117,41 @@ public final class Wei implements ClientModInitializer {
                                 .then(ClientCommandManager.literal("sound")
                                         .then(ClientCommandManager.literal("on").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightSound = true)))
                                         .then(ClientCommandManager.literal("off").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightSound = false))))
+                                // /wei loot rule list | add <種類> <レア度> <LE> | add <種類> <レア度> off | remove <番号> | clear
+                                .then(ClientCommandManager.literal("rule")
+                                        .then(ClientCommandManager.literal("list").executes(ctx -> listRules(ctx.getSource())))
+                                        .then(ClientCommandManager.literal("clear").executes(ctx -> {
+                                            WeiConfig.get().lootRules.clear();
+                                            WeiConfig.save();
+                                            return listRules(ctx.getSource());
+                                        }))
+                                        .then(ClientCommandManager.literal("remove")
+                                                .then(ClientCommandManager.argument("n", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1)).executes(ctx -> {
+                                                    int n = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "n");
+                                                    var rules = WeiConfig.get().lootRules;
+                                                    if (n <= rules.size()) rules.remove(n - 1);
+                                                    WeiConfig.save();
+                                                    return listRules(ctx.getSource());
+                                                })))
+                                        .then(ClientCommandManager.literal("add")
+                                                .then(ClientCommandManager.argument("type", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                        .suggests((ctx, b) -> {
+                                                            b.suggest("any");
+                                                            for (var c : io.github.wkwk.wei.loot.LootCategory.values()) b.suggest(c.id);
+                                                            return b.buildFuture();
+                                                        })
+                                                        .then(ClientCommandManager.argument("rarity", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                                .suggests((ctx, b) -> {
+                                                                    var c = io.github.wkwk.wei.loot.LootCategory.byId(com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "type"));
+                                                                    String[] list = c == null ? new String[] {"any"} : c.rarities();
+                                                                    for (String r : list) b.suggest(r);
+                                                                    return b.buildFuture();
+                                                                })
+                                                                .then(ClientCommandManager.literal("off").executes(ctx -> addRule(ctx.getSource(),
+                                                                        com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "type"), com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "rarity"), -1)))
+                                                                .then(ClientCommandManager.argument("le", com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(0)).executes(ctx -> addRule(ctx.getSource(),
+                                                                        com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "type"), com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "rarity"),
+                                                                        com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(ctx, "le"))))))))
                                 .then(ClientCommandManager.literal("threshold")
                                         .then(ClientCommandManager.argument("le", com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(0))
                                                 .executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightThresholdLe =

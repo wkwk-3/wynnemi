@@ -32,6 +32,47 @@ public final class WeiConfig {
     public boolean lootHighlightSound = true;
     /** 高額とみなす価格（LE。1 LE = 4096 エメラルド） */
     public double lootHighlightThresholdLe = 1.5;
+    /**
+     * 種類とレア度ごとの基準。当てはまる中で一番細かい指定（種類+レア度 > 種類だけ > レア度だけ）を使い、
+     * どれにも当てはまらなければ lootHighlightThresholdLe。基準が負ならその組み合わせは通知しない。
+     */
+    public java.util.List<LootRule> lootRules = new java.util.ArrayList<>();
+
+    public static final class LootRule {
+        /** gearBox, gear, ingredient, ... または any */
+        public String type = "any";
+        /** normal, unique, ..., mythic / tier0〜tier6 または any */
+        public String rarity = "any";
+        public double thresholdLe = 1.5;
+
+        public LootRule() {}
+
+        public LootRule(String type, String rarity, double thresholdLe) {
+            this.type = type;
+            this.rarity = rarity;
+            this.thresholdLe = thresholdLe;
+        }
+    }
+
+    /** その種類・レア度の基準（LE）。負なら通知しない */
+    public double thresholdFor(String type, String rarity) {
+        double best = lootHighlightThresholdLe;
+        int bestScore = -1;
+        if (lootRules != null) {
+            for (LootRule r : lootRules) {
+                boolean typeAny = "any".equalsIgnoreCase(r.type);
+                boolean rarityAny = "any".equalsIgnoreCase(r.rarity);
+                if (!typeAny && !r.type.equalsIgnoreCase(type)) continue;
+                if (!rarityAny && !r.rarity.equalsIgnoreCase(rarity)) continue;
+                int score = (typeAny ? 0 : 2) + (rarityAny ? 0 : 1);
+                if (score >= bestScore) {
+                    bestScore = score;
+                    best = r.thresholdLe;
+                }
+            }
+        }
+        return best;
+    }
     /** 判定に使う価格: lowest（最安値）/ average / average80（上下10%を除いた平均）/ median / highest */
     public String lootHighlightPrice = "lowest";
     /** スロットの色（ARGB） */
@@ -63,6 +104,7 @@ public final class WeiConfig {
             }
         }
         if (loaded == null) loaded = new WeiConfig();
+        if (loaded.lootRules == null) loaded.lootRules = new java.util.ArrayList<>();
         // 1.0.1-test.14 までの初期値（橙）は Wynntils のレア度の色と紛らわしいので、新しい初期値（緑）にする
         if (loaded.lootHighlightColor == 0xA0FFAA00) loaded.lootHighlightColor = 0xFF00FF66;
         instance = loaded;
