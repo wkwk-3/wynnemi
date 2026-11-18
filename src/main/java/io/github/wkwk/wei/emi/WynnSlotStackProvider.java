@@ -49,8 +49,9 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
 
             // 未鑑定ボックス：系統のスタックを返し、R でそのレベル範囲の候補へ飛ぶ
             if (wynnItem.get() instanceof GearBoxItem box) {
-                // Wynncraft の説明文に「可能性: レベル 101 … Lanternfly Leg」と候補が書いてあれば、その候補だけを出す
-                List<WynnEmiStack> candidates = candidatesFromLore(lookup, stack);
+                // ツールチップの「可能性: レベル 101 … Lanternfly Leg」は Wynntils（ItemGuess）が足している行。
+                // 同じ Models.Gear.getPossibleGears で候補を取り、その候補だけを出す
+                List<WynnEmiStack> candidates = possibleGears(lookup, box, stack);
                 if (!candidates.isEmpty()) {
                     if (candidates.size() == 1) return new EmiStackInteraction(candidates.get(0), null, false);
                     return new EmiStackInteraction(dev.emi.emi.api.stack.EmiIngredient.of(candidates), null, false);
@@ -114,28 +115,32 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 candidates.isEmpty() ? "none" : candidates);
     }
 
-    /** 未鑑定ボックスの説明文から、一覧にある装備の名前の行を拾う（言語に関係なく装備名は英語で書かれている） */
-    private static List<WynnEmiStack> candidatesFromLore(WynnLookup lookup, ItemStack stack) {
+    /** 未鑑定ボックスの中身の候補（Wynntils の判定）のうち、一覧にあるもの */
+    private static List<WynnEmiStack> possibleGears(WynnLookup lookup, GearBoxItem box, ItemStack stack) {
         List<WynnEmiStack> out = new ArrayList<>();
-        List<String> lines = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
         try {
-            for (var line : com.wynntils.utils.mc.LoreUtils.getLore(stack)) {
-                String text = Names.strip(line.getStringWithoutFormatting()).trim();
-                if (text.isEmpty()) continue;
-                lines.add(text);
-                String key = lookup.keyByPlainName.get(text.toLowerCase(Locale.ROOT));
-                if (key == null || !key.startsWith("gear/")) continue;
-                WynnEmiStack found = lookup.byKey.get(key);
-                if (found != null && !out.contains(found)) out.add(found);
+            for (var gear : Models.Gear.getPossibleGears(box)) {
+                names.add(gear.name());
+                WynnEmiStack found = lookup.byKey.get("gear/" + gear.name());
+                if (found == null) {
+                    String key = lookup.keyByPlainName.get(Names.strip(gear.name()).toLowerCase(Locale.ROOT));
+                    if (key != null) found = lookup.byKey.get(key);
+                }
+                if (found == null) missing.add(gear.name());
+                else if (!out.contains(found)) out.add(found);
             }
         } catch (Throwable t) {
-            io.github.wkwk.wei.Wei.LOGGER.warn("[WEI box] reading box lore failed", t);
+            io.github.wkwk.wei.Wei.LOGGER.warn("[WEI box] getPossibleGears failed", t);
         }
         // 調査用（常に出す）。同じ箱は1回だけ
-        String name = stack.getHoverName().getString();
-        if (LOGGED_BOXES.add(name + "|" + lines)) {
-            io.github.wkwk.wei.Wei.LOGGER.info("[WEI box] '{}' lore={} -> candidates={}", Names.strip(name), lines,
-                    out.stream().map(WynnEmiStack::key).toList());
+        String name = Names.strip(stack.getHoverName().getString());
+        String id = name + "|" + box.getGearType() + "|" + box.getGearTier() + "|" + box.getLevelRange();
+        if (LOGGED_BOXES.add(id)) {
+            io.github.wkwk.wei.Wei.LOGGER.info("[WEI box] '{}' type={} tier={} levels={} possible={} -> shown={} notInList={}",
+                    name, box.getGearType(), box.getGearTier(), box.getLevelRange(), names,
+                    out.stream().map(WynnEmiStack::key).toList(), missing);
         }
         return out;
     }
