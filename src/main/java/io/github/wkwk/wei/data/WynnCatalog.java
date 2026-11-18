@@ -673,7 +673,7 @@ public final class WynnCatalog {
                         .append(", preIdentified=").append(g.metaInfo().preIdentified())
                         .append(", material=").append(g.metaInfo().material())
                         .append(", powderSlots=").append(g.powderSlots())
-                        .append(", majorIds=").append(g.fixedStats().majorIds().size())
+                        .append(", majorIds=").append(g.fixedStats().majorIds().isPresent())
                         .append(", stats=[");
                 for (var stat : g.variableStats()) sb.append(stat.key().getApiName()).append(' ');
                 return sb.append("]}").toString();
