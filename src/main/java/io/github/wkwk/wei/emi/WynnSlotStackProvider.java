@@ -87,7 +87,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
         if (item instanceof MaterialItem mat) return "material/" + mat.getMaterialInfo().name() + " T" + mat.getQualityTier();
         if (item instanceof CharmItem charm) return "charm/" + charm.getItemInfo().name();
         if (item instanceof TomeItem tome) return "tome/" + tome.getItemInfo().name();
-        if (item instanceof AspectItem aspect) return "aspect/" + aspect.getAspectInfo().name() + " T" + aspect.getTier();
+        if (item instanceof AspectItem aspect) return "aspect/" + aspect.getAspectInfo().name();
         return null;
     }
 

@@ -37,6 +37,8 @@
   "emi.category.wei.quest_required": "必要なクエスト",
   "emi.category.wei.gear_box": "未鑑定ボックスの中身",
   "emi.category.wei.set": "セット装備",
+  "emi.category.wei.aspect_tier": "アスペクトのティア",
+  "wei.aspect.tier": "ティア %s（%s 個）",
   "wei.box.name": "未鑑定 %s %s",
   "wei.tooltip.box": "R で中身の候補を表示",
   "wei.tooltip.set_pieces": "%s 個装備:",

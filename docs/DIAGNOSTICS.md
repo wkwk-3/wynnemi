@@ -32,3 +32,7 @@
 - #2: お気に入り同期は EMI の読み込みと WEI の索引の準備ができるまで動かない。
 - #8: `-key:value` を否定条件として扱う。`Negated terms ... excluded X of Y items`。
 - #7: 名前で見つからないとき `Name candidates for ...` で似た名前を最大5件出す（ルーン調査用）。
+
+## 1.0.1 で追加
+
+- #3: `Hidden from the item list: {...}`。一覧から外した件数（֎ 付きの重複、廃止、クエスト専用、ID の無いイベント景品）。

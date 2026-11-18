@@ -63,7 +63,8 @@ public final class WeiEmiPlugin implements EmiPlugin {
         // Wynncraft にいる間はバニラのアイテム・レシピを隠す（無効化は全プラグインの後に適用される）
         if (config.hideVanillaOnWynncraft && onWynncraft) {
             registry.removeEmiStacks(stack -> !(stack instanceof WynnEmiStack));
-            registry.removeRecipes(recipe -> !(recipe instanceof WynnLinkRecipe) && !(recipe instanceof WynnSetRecipe));
+            registry.removeRecipes(recipe -> !(recipe instanceof WynnLinkRecipe) && !(recipe instanceof WynnSetRecipe)
+                    && !(recipe instanceof WynnAspectRecipe));
         }
 
         if (catalog.entries().isEmpty()) {
@@ -114,7 +115,11 @@ public final class WeiEmiPlugin implements EmiPlugin {
         // 6. セット装備
         EmiStack setIcon = EmiStack.of(Items.ARMOR_STAND);
         EmiRecipeCategory setCategory = new EmiRecipeCategory(Wei.id("set"), setIcon);
+        // 7. アスペクトのティア
+        EmiStack aspectIcon = EmiStack.of(Items.NETHER_STAR);
+        EmiRecipeCategory aspectCategory = new EmiRecipeCategory(Wei.id("aspect_tier"), aspectIcon);
         if (config.showGearRecipes) {
+            registry.addCategory(aspectCategory);
             registry.addCategory(questCategory);
             registry.addCategory(boxCategory);
             registry.addCategory(setCategory);
@@ -227,6 +232,16 @@ public final class WeiEmiPlugin implements EmiPlugin {
                 if (id != null) {
                     registry.addRecipe(new WynnSetRecipe(setCategory, id, setStack, members));
                 }
+            }
+        }
+
+        // 7. アスペクトのティア（何個集めると次のティアになるか）
+        if (config.showGearRecipes) {
+            for (WynnCatalog.AspectSnapshot aspect : catalog.aspects()) {
+                WynnEmiStack stack = byKey.get(aspect.key());
+                if (stack == null || aspect.tiers().isEmpty()) continue;
+                Identifier id = uniqueId(usedRecipeIds, "/aspect/" + Names.idPath(aspect.key()));
+                if (id != null) registry.addRecipe(new WynnAspectRecipe(aspectCategory, id, stack, aspect.tiers()));
             }
         }
 

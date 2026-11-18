@@ -125,14 +125,26 @@ public final class WynnCatalog {
     /** セット装備。メンバーはカタログのキー */
     public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
 
-    private static volatile WynnCatalog current = new WynnCatalog(List.of(), List.of());
+    /** アスペクトのティア。threshold 個集めるとそのティアになる */
+    public record AspectTier(int tier, int threshold, List<Component> effect) {}
+
+    /** アスペクト1種類ぶん（一覧には1件だけ出し、ティアはレシピ画面で見せる） */
+    public record AspectSnapshot(String key, List<AspectTier> tiers) {}
+
+    private static volatile WynnCatalog current = new WynnCatalog(List.of(), List.of(), List.of());
 
     private final List<Entry> entries;
     private final List<SetSnapshot> sets;
+    private final List<AspectSnapshot> aspects;
 
-    private WynnCatalog(List<Entry> entries, List<SetSnapshot> sets) {
+    private WynnCatalog(List<Entry> entries, List<SetSnapshot> sets, List<AspectSnapshot> aspects) {
         this.entries = entries;
         this.sets = sets;
+        this.aspects = aspects;
+    }
+
+    public List<AspectSnapshot> aspects() {
+        return aspects;
     }
 
     public List<SetSnapshot> sets() {
@@ -218,10 +230,12 @@ public final class WynnCatalog {
         private final Set<String> failedGroups = new LinkedHashSet<>();
         private final Map<String, String> questNames = new HashMap<>();
         private final List<SetSnapshot> sets = new ArrayList<>();
+        private final List<AspectSnapshot> aspects = new ArrayList<>();
 
         Build() {
             // 入手元は API の情報と有志のデータを合わせたもの（Wynntils のツールチップと同じ）を使う
             group("gear", () -> Models.Gear.getAllGearInfos()
+                    .filter(g -> !isHiddenGear(g))
                     .map(g -> (Runnable) () -> {
                         List<ItemObtainInfo> obtain = Models.Gear.getObtainInfo(g);
                         int level = g.requirements().level();
@@ -239,6 +253,8 @@ public final class WynnCatalog {
                     .toList());
 
             group("ingredient", () -> Models.Ingredient.getAllIngredientInfos()
+                    .filter(i -> !isDuplicateMarked(i.name(), i.apiName())
+                            && !isDiscontinued("ingredient", i.name(), Models.Ingredient.getObtainInfo(i)))
                     .map(i -> (Runnable) () -> add("ingredient", i.name(), new GuideIngredientItemStack(i), new Extra(
                             Models.Ingredient.getObtainInfo(i), i.professions(), null, i.level(),
                             "ingredient lv" + i.level() + " lv." + i.level() + " " + "*".repeat(Math.max(0, i.tier()))
@@ -266,6 +282,7 @@ public final class WynnCatalog {
                     .toList());
 
             group("charm", () -> Models.Rewards.getAllCharmInfos()
+                    .filter(c -> !isDiscontinued("charm", c.name(), Models.Rewards.getCharmObtainInfo(c)))
                     .map(c -> (Runnable) () -> add("charm", c.name(), new GuideCharmItemStack(c), new Extra(
                             Models.Rewards.getCharmObtainInfo(c), null, null, c.requirements().level(),
                             "charm " + c.tier().getName().toLowerCase(Locale.ROOT) + " lv" + c.requirements().level(),
@@ -273,22 +290,31 @@ public final class WynnCatalog {
                     .toList());
 
             group("tome", () -> Models.Rewards.getAllTomeInfos()
+                    .filter(t -> !isDuplicateMarked(t.name(), t.metaInfo().apiName())
+                            && !isDiscontinued("tome", t.name(), Models.Rewards.getTomeObtainInfo(t)))
                     .map(t -> (Runnable) () -> add("tome", t.name(), new GuideTomeItemStack(t), new Extra(
                             Models.Rewards.getTomeObtainInfo(t), null, null, t.requirements().level(),
                             "tome " + t.tier().getName().toLowerCase(Locale.ROOT) + " lv" + t.requirements().level(),
                             t.name(), null, null, ApiFacetsFactory.tome(t))))
                     .toList());
 
+            // アスペクトは1種類1件（最高ティアの見た目）。ティアと必要数はレシピ画面で見せる
             group("aspect", () -> Models.Aspect.getAllAspectInfos()
-                    .<Runnable>mapMulti((a, out) -> {
-                        for (int tier = 1; tier <= a.effects().size(); tier++) {
-                            int t = tier;
-                            out.accept(() -> add("aspect", a.name() + " T" + t, new GuideAspectItemStack(a, t),
-                                    new Extra(null, null, null, 0,
-                                            "aspect t" + t + " " + a.gearTier().getName().toLowerCase(Locale.ROOT)
-                                                    + (a.classType() == null ? "" : " " + a.classType().name().toLowerCase(Locale.ROOT)),
-                                            a.name(), null, null, ApiFacets.NONE)));
+                    .map(a -> (Runnable) () -> {
+                        int maxTier = Math.max(1, a.effects().size());
+                        String key = add("aspect", a.name(), new GuideAspectItemStack(a, maxTier),
+                                new Extra(null, null, null, 0,
+                                        "aspect " + a.gearTier().getName().toLowerCase(Locale.ROOT)
+                                                + (a.classType() == null ? "" : " " + a.classType().name().toLowerCase(Locale.ROOT)),
+                                        a.name(), null, null, ApiFacets.NONE));
+                        List<AspectTier> tiers = new ArrayList<>();
+                        for (int t = 0; t < a.effects().size(); t++) {
+                            var effect = a.effects().get(t);
+                            List<Component> lines = new ArrayList<>();
+                            for (var line : effect.value()) lines.add(line.getComponent());
+                            tiers.add(new AspectTier(t + 1, effect.key(), List.copyOf(lines)));
                         }
+                        aspects.add(new AspectSnapshot(key, List.copyOf(tiers)));
                     })
                     .toList());
 
@@ -384,7 +410,8 @@ public final class WynnCatalog {
         }
 
         WynnCatalog result() {
-            return new WynnCatalog(List.copyOf(entries), List.copyOf(sets));
+            io.github.wkwk.wei.Diag.log(3, "Hidden from the item list: {}", hiddenCounts);
+            return new WynnCatalog(List.copyOf(entries), List.copyOf(sets), List.copyOf(aspects));
         }
 
         int size() {
@@ -425,7 +452,7 @@ public final class WynnCatalog {
             add(group, null, stack, Extra.NONE);
         }
 
-        private void add(String group, @Nullable String plainName, ItemStack stack, Extra extra) {
+        private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra) {
             List<Component> tooltip = tooltipOf(stack);
             Component display = !tooltip.isEmpty() && !tooltip.get(0).getString().isBlank()
                     ? tooltip.get(0)
@@ -453,6 +480,44 @@ public final class WynnCatalog {
                     extra.boxFamily(),
                     quest,
                     extra.facets()));
+            return key;
+        }
+
+        // ---- 一覧に出さないもの（件数は diag#3 に出す）
+        private final Map<String, Integer> hiddenCounts = new java.util.TreeMap<>();
+
+        private void countHidden(String reason) {
+            hiddenCounts.merge(reason, 1, Integer::sum);
+        }
+
+        /** Wynncraft の API で名前に ֎ が付いたもの（同じ名前の古い版。ゲーム内では同じ名前が2つ並ぶ） */
+        private boolean isDuplicateMarked(String name, java.util.Optional<String> apiName) {
+            boolean marked = name.indexOf('\u058e') >= 0 || apiName.map(n -> n.indexOf('\u058e') >= 0).orElse(false);
+            if (marked) countHidden("duplicate(֎)");
+            return marked;
+        }
+
+        /** 入手元が「入手不可」（廃止） */
+        private boolean isDiscontinued(String group, String name, @Nullable List<ItemObtainInfo> obtain) {
+            boolean gone = obtain != null && obtain.stream().anyMatch(o -> o.sourceType() == ItemObtainType.UNAVAILABLE);
+            if (gone) countHidden("discontinued:" + group);
+            return gone;
+        }
+
+        private boolean isHiddenGear(com.wynntils.models.gear.type.GearInfo g) {
+            if (isDiscontinued("gear", g.name(), Models.Gear.getObtainInfo(g))) return true;
+            if (g.metaInfo().restrictions() == com.wynntils.models.gear.type.GearRestrictions.QUEST_ITEM) {
+                countHidden("questItem");
+                return true;
+            }
+            // ID もメジャー ID も無いイベント景品（見た目だけのマスク・チーム防具など）。normal の初期装備は残す
+            if (g.tier() != com.wynntils.models.gear.type.GearTier.NORMAL
+                    && g.variableStats().isEmpty()
+                    && g.fixedStats().majorIds().isEmpty()) {
+                countHidden("noIdEventGear");
+                return true;
+            }
+            return false;
         }
 
         private void addSet(String name, List<String> itemNames, Map<Integer, SetBonus> bonuses) {
