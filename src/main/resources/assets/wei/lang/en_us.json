@@ -38,7 +38,7 @@
   "emi.category.wei.gear_box": "Unidentified Box Contents",
   "emi.category.wei.set": "Gear Set",
   "emi.category.wei.aspect_tier": "Aspect Tiers",
-  "wei.aspect.tier": "Tier %s (%s collected)",
+  "wei.aspect.tier": "Tier %s: %s collected",
   "wei.box.name": "Unidentified %s %s",
   "wei.tooltip.box": "Press R to see what it can contain",
   "wei.tooltip.set_pieces": "%s pieces:",

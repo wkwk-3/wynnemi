@@ -8,49 +8,35 @@ import dev.emi.emi.api.widget.WidgetHolder;
 import io.github.wkwk.wei.data.WynnCatalog;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.FormattedCharSequence;
 
 /**
- * アスペクトのティア：ティアごとに「何個集めればそのティアになるか」と効果を縦に並べる。
- * スロットの数字が必要数。
+ * アスペクトのティア：1行に1ティア。左にそのティアのアスペクト（カーソルを合わせると、そのティアの効果）、
+ * 右に「ティア 2：累計 5 個」。
  */
 final class WynnAspectRecipe implements EmiRecipe {
-    private static final int WIDTH = 160;
-    private static final int TEXT_X = 22;
-    private static final int LINE = 10;
-
-    private record Row(EmiStack stack, Component title, List<FormattedCharSequence> effect, int y, int height) {}
+    private static final int WIDTH = 140;
+    private static final int ROW = 20;
+    /** 1.21.6 以降は文字色に不透明度（先頭の FF）が要る。無いと透明で何も見えない */
+    private static final int TEXT_COLOR = 0xFF404040;
 
     private final EmiRecipeCategory category;
     private final Identifier id;
     private final EmiStack aspect;
-    private final List<Row> rows = new ArrayList<>();
-    private final int height;
+    private final List<EmiStack> tierStacks = new ArrayList<>();
+    private final List<Component> titles = new ArrayList<>();
 
-    WynnAspectRecipe(EmiRecipeCategory category, Identifier id, EmiStack aspect, List<WynnCatalog.AspectTier> tiers) {
+    WynnAspectRecipe(EmiRecipeCategory category, Identifier id, WynnEmiStack aspect, List<WynnCatalog.AspectTier> tiers) {
         this.category = category;
         this.id = id;
         this.aspect = aspect;
-        var font = Minecraft.getInstance().font;
-        int y = 0;
         for (WynnCatalog.AspectTier tier : tiers) {
-            EmiStack stack = aspect.copy().setAmount(Math.max(1, tier.threshold()));
-            Component title = Component.translatable("wei.aspect.tier", tier.tier(), tier.threshold())
-                    .withStyle(ChatFormatting.WHITE);
-            List<FormattedCharSequence> effect = new ArrayList<>();
-            for (Component line : tier.effect()) {
-                if (line.getString().isBlank()) continue;
-                effect.addAll(font.split(line, WIDTH - TEXT_X));
-            }
-            int h = Math.max(18, LINE + effect.size() * LINE) + 4;
-            rows.add(new Row(stack, title, effect, y, h));
-            y += h;
+            // キーは一覧のアスペクトと同じ（お気に入りなどは1件のアスペクトとして扱われる）。見た目と説明文だけそのティア
+            List<Component> tooltip = tier.tooltip().size() > 1 ? tier.tooltip() : List.of(aspect.getName());
+            tierStacks.add(WynnEmiStack.ofItem(aspect.key(), tier.stack(), aspect.getName(), tooltip));
+            titles.add(Component.translatable("wei.aspect.tier", tier.tier(), tier.threshold()));
         }
-        this.height = Math.max(18, y);
     }
 
     @Override
@@ -80,7 +66,7 @@ final class WynnAspectRecipe implements EmiRecipe {
 
     @Override
     public int getDisplayHeight() {
-        return height;
+        return Math.max(18, tierStacks.size() * ROW - 2);
     }
 
     @Override
@@ -90,14 +76,10 @@ final class WynnAspectRecipe implements EmiRecipe {
 
     @Override
     public void addWidgets(WidgetHolder widgets) {
-        for (Row row : rows) {
-            widgets.addSlot(row.stack(), 0, row.y()).recipeContext(this);
-            widgets.addText(row.title(), TEXT_X, row.y(), 0xFFFFFF, true);
-            int ly = row.y() + LINE;
-            for (FormattedCharSequence line : row.effect()) {
-                widgets.addText(line, TEXT_X, ly, 0xAAAAAA, false);
-                ly += LINE;
-            }
+        for (int i = 0; i < tierStacks.size(); i++) {
+            int y = i * ROW;
+            widgets.addSlot(tierStacks.get(i), 0, y).recipeContext(this);
+            widgets.addText(titles.get(i), 22, y + 5, TEXT_COLOR, false);
         }
     }
 }

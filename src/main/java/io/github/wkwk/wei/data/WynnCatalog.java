@@ -132,7 +132,7 @@ public final class WynnCatalog {
     public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
 
     /** アスペクトのティア。threshold 個集めるとそのティアになる */
-    public record AspectTier(int tier, int threshold, List<Component> effect) {}
+    public record AspectTier(int tier, int threshold, List<Component> effect, ItemStack stack, List<Component> tooltip) {}
 
     /** アスペクト1種類ぶん（一覧には1件だけ出し、ティアはレシピ画面で見せる） */
     public record AspectSnapshot(String key, List<AspectTier> tiers) {}
@@ -327,7 +327,10 @@ public final class WynnCatalog {
                             var effect = a.effects().get(t);
                             List<Component> lines = new ArrayList<>();
                             for (var line : effect.value()) lines.add(line.getComponent());
-                            tiers.add(new AspectTier(t + 1, effect.key(), List.copyOf(lines)));
+                            // そのティアの見た目と説明文（レシピ画面の各行で使う）
+                            ItemStack tierStack = new GuideAspectItemStack(a, t + 1);
+                            tiers.add(new AspectTier(t + 1, effect.key(), List.copyOf(lines), tierStack,
+                                    tooltipOf(tierStack).lines()));
                         }
                         aspects.add(new AspectSnapshot(key, List.copyOf(tiers)));
                     })
