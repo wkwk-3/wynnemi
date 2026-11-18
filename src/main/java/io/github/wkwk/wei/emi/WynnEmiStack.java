@@ -91,28 +91,9 @@ public final class WynnEmiStack extends EmiStack {
         return stack;
     }
 
-    /** 説明文の作り直しをホバー時に試したキー（ログを1回だけにする） */
-    private static final java.util.Set<String> RETRIED = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
     @Override
     public List<Component> getTooltipText() {
-        if (io.github.wkwk.wei.data.WynnCatalog.isTooltipFallback(key) && RETRIED.add(key)) {
-            logHoverRetry();
-        }
         return tooltip;
-    }
-
-    /** 原因調査用: 一覧作成時に説明文が作れなかったアイテムに、ゲーム中のいま作れるかを試してログに出す（表示は変えない） */
-    private void logHoverRetry() {
-        var mc = net.minecraft.client.Minecraft.getInstance();
-        try {
-            List<Component> lines = stack.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.EMPTY, mc.player,
-                    net.minecraft.world.item.TooltipFlag.NORMAL);
-            io.github.wkwk.wei.Wei.LOGGER.warn("[WEI tooltip] HOVER retry key='{}' player={} -> {} line(s), first='{}'",
-                    key, mc.player != null, lines.size(), lines.isEmpty() ? "" : lines.get(0).getString());
-        } catch (Throwable t) {
-            io.github.wkwk.wei.Wei.LOGGER.warn("[WEI tooltip] HOVER retry key='{}' player={} FAILED", key, mc.player != null, t);
-        }
     }
 
     @Override

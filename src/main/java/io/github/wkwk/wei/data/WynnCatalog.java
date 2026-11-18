@@ -466,14 +466,24 @@ public final class WynnCatalog {
         private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra) {
             TooltipResult result = tooltipOf(stack);
             List<Component> tooltip = result.lines();
-            boolean fallback = tooltip.isEmpty() || tooltip.get(0).getString().isBlank();
-            Component display = !fallback ? tooltip.get(0) : stack.getHoverName();
+            // Wynntils の説明文は1行目が空行で、名前は飾り文字（私用領域の文字）と一緒に2行目以降にある。
+            // 表示名は「飾りを除いて文字が残る最初の行」から取る。取れなければ Wynntils のデータの名前、最後にバニラの名前
+            String nameLine = firstTextLine(tooltip);
+            boolean fallback = nameLine == null && plainName == null;
+            Component display = plainName != null ? Component.literal(plainName)
+                    : nameLine != null ? Component.literal(nameLine)
+                    : stack.getHoverName();
+            if (nameLine == null && plainName != null) {
+                Wei.LOGGER.warn("[WEI tooltip] no text line in tooltip; using data name group={} name='{}' lines={} first={}",
+                        group, plainName, tooltip.size(), firstLinesForLog(tooltip));
+            }
             if (tooltip.isEmpty()) tooltip = List.of(display);
             if (fallback) {
                 tooltipFallbacks++;
                 // 原因調査用。設定に関係なく常に出す
                 String why = result.error() != null ? "exception " + result.error()
-                        : result.lines().isEmpty() ? "empty tooltip" : "blank first line (" + result.lines().size() + " lines)";
+                        : result.lines().isEmpty() ? "empty tooltip"
+                        : "no text line (" + result.lines().size() + " lines, first=" + firstLinesForLog(result.lines()) + ")";
                 Wei.LOGGER.warn("[WEI tooltip] FALLBACK #{} group={} name='{}' stackClass={} vanillaName='{}' player={} cause={} detail={}",
                         tooltipFallbacks, group, plainName, stack.getClass().getName(), stack.getHoverName().getString(),
                         Minecraft.getInstance().player != null, why, describeForLog(stack));
@@ -592,6 +602,24 @@ public final class WynnCatalog {
         }
 
         private int tooltipFallbacks;
+
+        /** 飾り文字を除いて文字が残る最初の行（名前の行）。無ければ null */
+        private static @Nullable String firstTextLine(List<Component> lines) {
+            for (Component line : lines) {
+                String text = Names.strip(line.getString()).trim();
+                if (!text.isEmpty()) return text;
+            }
+            return null;
+        }
+
+        private static String firstLinesForLog(List<Component> lines) {
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < Math.min(3, lines.size()); i++) {
+                if (i > 0) sb.append(" | ");
+                sb.append('\'').append(lines.get(i).getString().replaceAll("\\p{Co}", "?")).append('\'');
+            }
+            return sb.append(']').toString();
+        }
 
         record TooltipResult(List<Component> lines, @Nullable Throwable error) {}
 
