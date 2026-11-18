@@ -26,11 +26,30 @@ public final class WeiConfig {
     public boolean showGearRecipes = true;
     /** EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる */
     public boolean syncFavoritesToWynntils = true;
+    /** ルートチェスト・報酬チェストで、取引所の価格が高いアイテムのスロットに色を付ける（Wynnventory が必要） */
+    public boolean lootHighlightEnabled = true;
+    /** 高額アイテムがあったら音を鳴らす */
+    public boolean lootHighlightSound = true;
+    /** 高額とみなす価格（LE。1 LE = 4096 エメラルド） */
+    public double lootHighlightThresholdLe = 1.5;
+    /** 判定に使う価格: lowest（最安値）/ average / average80（上下10%を除いた平均）/ median / highest */
+    public String lootHighlightPrice = "lowest";
+    /** スロットの色（ARGB） */
+    public int lootHighlightColor = 0xA0FFAA00;
     /** 実機テスト用の診断ログ（[WEI diag#番号]）を出す */
     public boolean diagnostics = true;
 
     public static WeiConfig get() {
         return instance;
+    }
+
+    public static void save() {
+        Path path = FabricLoader.getInstance().getConfigDir().resolve("wei.json");
+        try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+            GSON.toJson(instance, writer);
+        } catch (Exception e) {
+            Wei.LOGGER.warn("Failed to write {}", path, e);
+        }
     }
 
     public static void load() {

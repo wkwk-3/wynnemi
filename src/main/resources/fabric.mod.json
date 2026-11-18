@@ -31,5 +31,8 @@
   "contact": {
     "sources": "https://github.com/wkwk-3/wynnemi",
     "issues": "https://github.com/wkwk-3/wynnemi/issues"
+  },
+  "suggests": {
+    "wynnventory": "*"
   }
 }

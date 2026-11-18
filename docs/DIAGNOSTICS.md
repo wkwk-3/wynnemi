@@ -36,3 +36,4 @@
 ## 1.0.1 で追加
 
 - #3: `Hidden from the item list: {...}`。一覧から外した件数（֎ 付きの重複、廃止、クエスト専用、ID の無いイベント景品）。
+- #14: 高額アイテム通知。`Using Wynnventory prices` / `Wynnventory is not installed` / `Reward chest opened: <種類>` / `High value item: '<名前>' = <エメラルド> (<LE>)` / `Wynnventory price lookup failed`。

@@ -56,5 +56,8 @@
   "wei.search.ids": "IDs",
   "wei.search.majorIds": "Major IDs",
   "wei.search.apply": "Search",
-  "wei.search.clear": "Clear"
+  "wei.search.clear": "Clear",
+  "wei.loot.status": "Loot highlight: %s / sound: %s / threshold: %s LE / price: %s / %s",
+  "wei.loot.wynnventory.ok": "Wynnventory: in use",
+  "wei.loot.wynnventory.missing": "Wynnventory: not found (highlight disabled)"
 }

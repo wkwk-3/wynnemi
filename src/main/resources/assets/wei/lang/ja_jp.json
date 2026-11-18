@@ -56,5 +56,8 @@
   "wei.search.ids": "ID",
   "wei.search.majorIds": "メジャーID",
   "wei.search.apply": "検索",
-  "wei.search.clear": "クリア"
+  "wei.search.clear": "クリア",
+  "wei.loot.status": "高額アイテム通知: %s / 音: %s / 基準: %s LE / 価格: %s / %s",
+  "wei.loot.wynnventory.ok": "Wynnventory: 使用中",
+  "wei.loot.wynnventory.missing": "Wynnventory: 見つからない（通知は動きません）"
 }

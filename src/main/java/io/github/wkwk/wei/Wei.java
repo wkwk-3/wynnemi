@@ -31,6 +31,28 @@ public final class Wei implements ClientModInitializer {
 
     private static volatile boolean openSearchNextTick;
 
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> priceLiteral(String type) {
+        return ClientCommandManager.literal("price").then(ClientCommandManager.literal(type)
+                .executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightPrice = type)));
+    }
+
+    private static int setLoot(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source,
+            java.util.function.Consumer<WeiConfig> change) {
+        change.accept(WeiConfig.get());
+        WeiConfig.save();
+        return lootStatus(source);
+    }
+
+    private static int lootStatus(net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource source) {
+        WeiConfig c = WeiConfig.get();
+        source.sendFeedback(Component.translatable("wei.loot.status",
+                Component.translatable(c.lootHighlightEnabled ? "options.on" : "options.off"),
+                Component.translatable(c.lootHighlightSound ? "options.on" : "options.off"),
+                c.lootHighlightThresholdLe, c.lootHighlightPrice,
+                Component.translatable(io.github.wkwk.wei.loot.WynnventoryPrices.isAvailable() ? "wei.loot.wynnventory.ok" : "wei.loot.wynnventory.missing")));
+        return 1;
+    }
+
     @Override
     public void onInitializeClient() {
         WeiConfig.load();
@@ -45,6 +67,7 @@ public final class Wei implements ClientModInitializer {
         // 件数の監視（保険）で、揃ったら・変わったらカタログを作り直して EMI を再読み込みする
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             WynntilsDownloadListener.registerOnce();
+            io.github.wkwk.wei.loot.LootHighlight.registerOnce();
             WynnDataWatcher.tick();
             WynnFavoritesSync.tick();
             // /wei search はチャットが閉じたあとに開く
@@ -63,6 +86,20 @@ public final class Wei implements ClientModInitializer {
                             ctx.getSource().sendFeedback(Component.translatable("wei.command.reload"));
                             return 1;
                         }))
+                        // 高額アイテムの通知: /wei loot on|off, sound on|off, threshold <LE>, price <種類>
+                        .then(ClientCommandManager.literal("loot")
+                                .executes(ctx -> lootStatus(ctx.getSource()))
+                                .then(ClientCommandManager.literal("on").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightEnabled = true)))
+                                .then(ClientCommandManager.literal("off").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightEnabled = false)))
+                                .then(ClientCommandManager.literal("sound")
+                                        .then(ClientCommandManager.literal("on").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightSound = true)))
+                                        .then(ClientCommandManager.literal("off").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightSound = false))))
+                                .then(ClientCommandManager.literal("threshold")
+                                        .then(ClientCommandManager.argument("le", com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(0))
+                                                .executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightThresholdLe =
+                                                        com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(ctx, "le")))))
+                                .then(priceLiteral("lowest")).then(priceLiteral("average")).then(priceLiteral("average80"))
+                                .then(priceLiteral("median")).then(priceLiteral("highest")))
                         // 条件設定の画面を開く
                         .then(ClientCommandManager.literal("search").executes(ctx -> {
                             openSearchNextTick = true;
