@@ -337,32 +337,39 @@ public final class WynnCatalog {
                     .toList());
 
             group("powder", () -> Models.Element.getAllPowderTierInfo().stream()
-                    .map(p -> (Runnable) () -> addUnnamed("powder", new GuidePowderItemStack(p)))
+                    .map(p -> (Runnable) () -> addUnnamed("powder", p.element().name() + "_" + p.tier(), new GuidePowderItemStack(p)))
                     .toList());
 
             group("rune", () -> Models.Rewards.getAllRuneInfo().stream()
-                    .map(r -> (Runnable) () -> addUnnamed("rune", new GuideRuneItemStack(r)))
+                    .map(r -> (Runnable) () -> addUnnamed("rune", r.name(), new GuideRuneItemStack(r)))
                     .toList());
 
             group("ward", () -> Models.Rewards.getAllWardInfo().stream()
-                    .map(w -> (Runnable) () -> addUnnamed("ward", new GuideWardItemStack(w)))
+                    .map(w -> (Runnable) () -> addUnnamed("ward", w.name(), new GuideWardItemStack(w)))
                     .toList());
 
             group("augment", () -> {
                 List<Runnable> list = new ArrayList<>();
                 Models.Rewards.getAllAmplifierInfo()
-                        .forEach(a -> list.add(() -> addUnnamed("augment", new GuideAmplifierItemStack(a))));
-                list.add(() -> addUnnamed("augment", new GuideSimulatorItemStack()));
-                list.add(() -> addUnnamed("augment", new GuideInsulatorItemStack()));
+                        .forEach(a -> list.add(() -> addUnnamed("augment", "amplifier_" + a.tier(), new GuideAmplifierItemStack(a))));
+                list.add(() -> addUnnamed("augment", "simulator", new GuideSimulatorItemStack()));
+                list.add(() -> addUnnamed("augment", "insulator", new GuideInsulatorItemStack()));
                 return list;
             });
 
             group("emerald", () -> {
                 List<Runnable> list = new ArrayList<>();
-                Models.Emerald.getAllEmeraldItems().forEach(e -> list.add(() -> addUnnamed("emerald", e)));
+                // 順番は EmeraldUnits と同じ（エメラルド・ブロック・リキッド）
+                List<? extends ItemStack> units = Models.Emerald.getAllEmeraldItems();
+                for (int u = 0; u < units.size(); u++) {
+                    ItemStack unit = units.get(u);
+                    String id = u < com.wynntils.models.emeralds.type.EmeraldUnits.values().length
+                            ? com.wynntils.models.emeralds.type.EmeraldUnits.values()[u].name() : "unit_" + u;
+                    list.add(() -> addUnnamed("emerald", id, unit));
+                }
                 for (int i = 1; i <= 10; i++) {
                     int tier = i;
-                    list.add(() -> addUnnamed("emerald", new GuideEmeraldPouchItemStack(tier)));
+                    list.add(() -> addUnnamed("emerald", "pouch_" + tier, new GuideEmeraldPouchItemStack(tier)));
                 }
                 return list;
             });
@@ -372,15 +379,15 @@ public final class WynnCatalog {
                 List<Runnable> list = new ArrayList<>();
                 for (Dungeon dungeon : Dungeon.values()) {
                     if (dungeon.doesExist()) {
-                        list.add(() -> addUnnamed("dungeon_key", new GuideDungeonKeyItemStack(dungeon, false, false)));
+                        list.add(() -> addUnnamed("dungeon_key", dungeon.name(), new GuideDungeonKeyItemStack(dungeon, false, false)));
                         if (dungeon.doesCorruptedExist()) {
-                            list.add(() -> addUnnamed("dungeon_key", new GuideDungeonKeyItemStack(dungeon, false, true)));
+                            list.add(() -> addUnnamed("dungeon_key", dungeon.name() + "_broken", new GuideDungeonKeyItemStack(dungeon, false, true)));
                         }
                     }
                     if (dungeon.doesCorruptedExist()) {
-                        list.add(() -> addUnnamed("dungeon_key", new GuideDungeonKeyItemStack(dungeon, true, false)));
+                        list.add(() -> addUnnamed("dungeon_key", dungeon.name() + "_corrupted", new GuideDungeonKeyItemStack(dungeon, true, false)));
                         if (dungeon == Dungeon.LOST_SANCTUARY) {
-                            list.add(() -> addUnnamed("dungeon_key", new GuideDungeonKeyItemStack(dungeon, true, true)));
+                            list.add(() -> addUnnamed("dungeon_key", dungeon.name() + "_corrupted_broken", new GuideDungeonKeyItemStack(dungeon, true, true)));
                         }
                     }
                 }
@@ -471,11 +478,19 @@ public final class WynnCatalog {
             }
         }
 
-        private void addUnnamed(String group, ItemStack stack) {
-            add(group, null, stack, Extra.NONE);
+        /**
+         * データに名前が無いアイテム。表示名は説明文から取るが、キー（お気に入りなどの保存に使う）は
+         * 言語や表示に左右されない ID にする（例: rune/AZ、powder/EARTH_3、dungeon_key/ICE_BARROWS_corrupted）
+         */
+        private void addUnnamed(String group, String id, ItemStack stack) {
+            add(group, null, stack, Extra.NONE, id);
         }
 
         private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra) {
+            return add(group, plainName, stack, extra, null);
+        }
+
+        private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra, @Nullable String keyId) {
             TooltipResult result = tooltipOf(stack);
             List<Component> tooltip = result.lines();
             // Wynntils の説明文は1行目が空行で、名前は飾り文字（私用領域の文字）と一緒に2行目以降にある。
@@ -513,10 +528,11 @@ public final class WynnCatalog {
             String plain = plainName != null ? plainName : Names.strip(display.getString());
             if (plain.isBlank()) plain = Names.strip(stack.getHoverName().getString());
 
-            String key = group + "/" + plain;
+            String keyBase = keyId != null ? keyId : plain;
+            String key = group + "/" + keyBase;
             int n = 2;
             while (!keys.add(key)) {
-                key = group + "/" + plain + "#" + n++;
+                key = group + "/" + keyBase + "#" + n++;
             }
             if (fallback) {
                 TOOLTIP_FALLBACK_KEYS.add(key);

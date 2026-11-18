@@ -55,8 +55,23 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
     /** 古い形式のキーを今の形にする。変える必要が無ければ null */
     public static @org.jetbrains.annotations.Nullable String legacyKey(String key) {
         if (key.startsWith("aspect/") && key.matches(".* T\\d+$")) return key.substring(0, key.lastIndexOf(" T"));
+        // 1.0.1-test.19 より前は、名前の無いアイテム（ルーン・パウダー・キーなど）のキーが表示名だった（例: rune/Az Rune）。
+        // 今は言語に左右されない ID（rune/AZ）。表示名から今のキーを引く
+        int slash = key.indexOf('/');
+        if (slash > 0) {
+            String group = key.substring(0, slash);
+            if (UNNAMED_GROUPS.contains(group)) {
+                String name = key.substring(slash + 1).replaceAll("#\\d+$", "");
+                String now = WynnLookup.current().keyByPlainName.get(
+                        io.github.wkwk.wei.util.Names.strip(name).toLowerCase(java.util.Locale.ROOT));
+                if (now != null && now.startsWith(group + "/") && !now.equals(key)) return now;
+            }
+        }
         return null;
     }
+
+    private static final java.util.Set<String> UNNAMED_GROUPS =
+            java.util.Set.of("powder", "rune", "ward", "augment", "emerald", "dungeon_key");
 
     @Override
     public JsonElement serialize(WynnEmiStack stack) {
