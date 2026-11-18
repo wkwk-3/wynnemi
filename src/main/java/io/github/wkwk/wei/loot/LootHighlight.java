@@ -95,7 +95,7 @@ public final class LootHighlight {
                     price.getAsLong(), String.format("%.2f", price.getAsLong() / 4096.0));
             if (config.lootHighlightSound) {
                 Minecraft.getInstance().getSoundManager()
-                        .play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING, 1.5f, 1.0f));
+                        .play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.5f, 1.0f));
             }
         }
     }
