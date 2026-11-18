@@ -35,7 +35,7 @@ public final class WeiConfig {
     /** 判定に使う価格: lowest（最安値）/ average / average80（上下10%を除いた平均）/ median / highest */
     public String lootHighlightPrice = "lowest";
     /** スロットの色（ARGB） */
-    public int lootHighlightColor = 0xA0FFAA00;
+    public int lootHighlightColor = 0xFF00FF66;
     /** 実機テスト用の診断ログ（[WEI diag#番号]）を出す */
     public boolean diagnostics = true;
 
@@ -63,6 +63,8 @@ public final class WeiConfig {
             }
         }
         if (loaded == null) loaded = new WeiConfig();
+        // 1.0.1-test.14 までの初期値（橙）は Wynntils のレア度の色と紛らわしいので、新しい初期値（緑）にする
+        if (loaded.lootHighlightColor == 0xA0FFAA00) loaded.lootHighlightColor = 0xFF00FF66;
         instance = loaded;
 
         // 足りない項目を補って書き戻す

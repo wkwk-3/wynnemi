@@ -51,6 +51,8 @@ public final class LootHighlight {
     /** 高額と判定したスロット → そのときのアイテム名（中身が入れ替わったら新しい当たりとして鳴らす） */
     private final Map<Integer, String> flagged = new java.util.HashMap<>();
     private long lastSoundAt;
+    /** いま高額と判定しているスロット（枠を描く） */
+    private final java.util.Set<Slot> highSlots = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
 
     public static void registerOnce() {
         if (registered) return;
@@ -92,6 +94,7 @@ public final class LootHighlight {
             screen = event.getScreen();
             prices.clear();
             flagged.clear();
+            highSlots.clear();
             lastSoundAt = 0;
             Diag.log(14, "Reward chest opened: {} (price={}, threshold={} LE)",
                     container.getClass().getSimpleName(), config.lootHighlightPrice, config.lootHighlightThresholdLe);
@@ -103,12 +106,16 @@ public final class LootHighlight {
         if (price.getAsLong() < threshold) {
             // 安いものに入れ替わったスロットは、また高額品が入ったときに鳴らせるよう忘れる
             flagged.remove(slot.index);
+            highSlots.remove(slot);
             return;
         }
 
         int x = slot.x;
         int y = slot.y;
-        event.getGuiGraphics().fill(x, y, x + 16, y + 16, config.lootHighlightColor);
+        // 背景は薄く塗り、目立たせるのはアイテムの上に描く枠（onRenderSlotPost）
+        int base = config.lootHighlightColor | 0xFF000000;
+        event.getGuiGraphics().fill(x, y, x + 16, y + 16, (base & 0x00FFFFFF) | 0x70000000);
+        highSlots.add(slot);
 
         // 初めての当たり、または同じスロットの中身が入れ替わって（ローランのリロールなど）また当たったとき
         String name = stack.getHoverName().getString();
@@ -123,6 +130,30 @@ public final class LootHighlight {
                         .play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.5f, 1.0f));
             }
         }
+    }
+
+    /** アイテムの上に、点滅する太い枠を描く（Wynntils のレア度の色付けと見分けがつくように） */
+    @SubscribeEvent
+    public void onRenderSlotPost(SlotRenderEvent.Post event) {
+        Slot slot = event.getSlot();
+        if (!highSlots.contains(slot) || event.getScreen() != screen) return;
+        if (slot.getItem().isEmpty()) {
+            highSlots.remove(slot);
+            return;
+        }
+        int rgb = WeiConfig.get().lootHighlightColor & 0x00FFFFFF;
+        // 0.8 秒周期で明るさを変える
+        double phase = (System.currentTimeMillis() % 800L) / 800.0;
+        int alpha = (int) (0xA0 + 0x5F * (0.5 + 0.5 * Math.sin(phase * Math.PI * 2)));
+        int color = (alpha << 24) | rgb;
+        var g = event.getGuiGraphics();
+        int x = slot.x;
+        int y = slot.y;
+        // 外側 1px（スロットの隙間）+ 内側 1px の 2px の枠
+        g.fill(x - 1, y - 1, x + 17, y + 1, color);
+        g.fill(x - 1, y + 15, x + 17, y + 17, color);
+        g.fill(x - 1, y + 1, x + 1, y + 15, color);
+        g.fill(x + 15, y + 1, x + 17, y + 15, color);
     }
 
     private OptionalLong priceOf(ItemStack stack, String priceType) {
