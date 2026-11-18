@@ -54,6 +54,17 @@ public final class Wei implements ClientModInitializer {
                             WynnDataWatcher.requestRebuild();
                             ctx.getSource().sendFeedback(Component.translatable("wei.command.rebuild"));
                             return 1;
+                        }))
+                        // 一覧のアイテムをすべて config/wei-export.json に書き出す
+                        .then(ClientCommandManager.literal("export").executes(ctx -> {
+                            try {
+                                java.nio.file.Path out = io.github.wkwk.wei.data.WynnExport.export();
+                                ctx.getSource().sendFeedback(Component.literal("WEI: " + io.github.wkwk.wei.data.WynnCatalog.current().entries().size() + " items -> " + out));
+                            } catch (Exception e) {
+                                LOGGER.error("WEI export failed", e);
+                                ctx.getSource().sendError(Component.literal("WEI export failed: " + e));
+                            }
+                            return 1;
                         }))));
     }
 }
