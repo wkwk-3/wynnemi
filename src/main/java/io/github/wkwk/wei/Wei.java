@@ -78,7 +78,7 @@ public final class Wei implements ClientModInitializer {
         // Wynncraft のインベントリ・チェスト画面の左上に、条件設定の画面を開くボタンを置く
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>) || !WynnCatalog.isOnWynncraftNow()) return;
-            Screens.getWidgets(screen).add(Button.builder(Component.translatable("wei.search.button"),
+            Screens.getButtons(screen).add(Button.builder(Component.translatable("wei.search.button"),
                             b -> client.setScreen(new WeiSearchScreen(screen)))
                     .bounds(2, 2, 60, 16)
                     .tooltip(Tooltip.create(Component.translatable("wei.search.title")))
