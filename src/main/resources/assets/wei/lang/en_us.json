@@ -89,5 +89,6 @@
   "wei.config.price.average": "Average",
   "wei.config.price.average80": "Average 80%",
   "wei.config.price.median": "Median",
-  "wei.config.price.highest": "Highest"
+  "wei.config.price.highest": "Highest",
+  "wei.tooltip.boxInstance": "Possible items in this box: %s"
 }

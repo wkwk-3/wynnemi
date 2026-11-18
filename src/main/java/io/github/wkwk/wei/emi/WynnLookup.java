@@ -45,6 +45,7 @@ public final class WynnLookup {
     }
 
     static void publish(WynnLookup lookup) {
+        WynnBoxInstances.clear();
         current = lookup;
     }
 

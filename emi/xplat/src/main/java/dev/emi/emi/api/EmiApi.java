@@ -132,6 +132,12 @@ public class EmiApi {
 		if (stack instanceof EmiFavorite fav) {
 			stack = fav.getStack();
 		}
+		// [WEI fork] an addon may supply the pages for its own dynamic stacks
+		Map<EmiRecipeCategory, List<EmiRecipe>> forkPages = dev.emi.emi.fork.EmiForkApi.overrideRecipes(stack, false);
+		if (forkPages != null) {
+			setPages(forkPages, stack);
+			return;
+		}
 		if (stack instanceof TagEmiIngredient tag) {
 			for (EmiRecipe recipe : getRecipeManager().getRecipes(VanillaPlugin.TAG)) {
 				if (recipe instanceof EmiTagRecipe tr && tr.key.equals(tag.key)) {
@@ -149,6 +155,12 @@ public class EmiApi {
 	}
 
 	public static void displayUses(EmiIngredient stack) {
+		// [WEI fork] an addon may supply the pages for its own dynamic stacks
+		Map<EmiRecipeCategory, List<EmiRecipe>> forkPages = dev.emi.emi.fork.EmiForkApi.overrideRecipes(stack, true);
+		if (forkPages != null) {
+			setPages(forkPages, stack);
+			return;
+		}
 		if (!stack.isEmpty()) {
 			EmiStack zero = stack.getEmiStacks().get(0);
 			Map<EmiRecipeCategory, List<EmiRecipe>> map

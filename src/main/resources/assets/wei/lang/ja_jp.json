@@ -89,5 +89,6 @@
   "wei.config.price.average": "平均",
   "wei.config.price.average80": "80%平均",
   "wei.config.price.median": "中央値",
-  "wei.config.price.highest": "最高値"
+  "wei.config.price.highest": "最高値",
+  "wei.tooltip.boxInstance": "この未鑑定ボックスの中身の候補: %s 個"
 }

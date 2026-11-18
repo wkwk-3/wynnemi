@@ -52,12 +52,17 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 // ツールチップの「可能性: レベル 101 … Lanternfly Leg」は Wynntils（ItemGuess）が足している行。
                 // 同じ Models.Gear.getPossibleGears で候補を取り、その候補だけを出す
                 List<WynnEmiStack> candidates = possibleGears(lookup, box, stack);
+                WynnLookup.BoxIndex index = lookup.boxes.get(
+                        WynnCatalog.boxFamilyKey(box.getGearType().name(), box.getGearTier().name()));
+                if (!candidates.isEmpty() && index != null) {
+                    // この箱だけの一時的なスタックを作り、R/U ではその候補への「未鑑定ボックス」のレシピだけを出す
+                    WynnEmiStack instance = WynnBoxInstances.create(stack, box, index, candidates);
+                    if (instance != null) return new EmiStackInteraction(instance, null, false);
+                }
                 if (!candidates.isEmpty()) {
                     if (candidates.size() == 1) return new EmiStackInteraction(candidates.get(0), null, false);
                     return new EmiStackInteraction(dev.emi.emi.api.stack.EmiIngredient.of(candidates), null, false);
                 }
-                WynnLookup.BoxIndex index = lookup.boxes.get(
-                        WynnCatalog.boxFamilyKey(box.getGearType().name(), box.getGearTier().name()));
                 if (index == null) return EmiStackInteraction.EMPTY;
                 WynnLinkRecipe focus = index.firstInRange(box.getLevelRange().low(), box.getLevelRange().high());
                 return new EmiStackInteraction(index.stack(), focus, false);

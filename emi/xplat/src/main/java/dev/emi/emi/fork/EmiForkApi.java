@@ -123,4 +123,30 @@ public final class EmiForkApi {
 	@ApiStatus.Internal
 	public record PreparedSearch(String remainingQuery, List<EmiSearchExtension.Prepared> extensions) {
 	}
+	/** [WEI fork] Supplies recipe pages for an ingredient (R when uses=false, U when uses=true); return null to fall back to EMI. */
+	public interface RecipeOverride {
+		@org.jetbrains.annotations.Nullable
+		java.util.Map<dev.emi.emi.api.recipe.EmiRecipeCategory, java.util.List<dev.emi.emi.api.recipe.EmiRecipe>> pages(
+				dev.emi.emi.api.stack.EmiIngredient stack, boolean uses);
+	}
+
+	private static final java.util.List<RecipeOverride> RECIPE_OVERRIDES = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+	public static void registerRecipeOverride(RecipeOverride override) {
+		RECIPE_OVERRIDES.add(override);
+	}
+
+	@org.jetbrains.annotations.ApiStatus.Internal
+	public static @org.jetbrains.annotations.Nullable java.util.Map<dev.emi.emi.api.recipe.EmiRecipeCategory, java.util.List<dev.emi.emi.api.recipe.EmiRecipe>> overrideRecipes(
+			dev.emi.emi.api.stack.EmiIngredient stack, boolean uses) {
+		for (RecipeOverride override : RECIPE_OVERRIDES) {
+			try {
+				var pages = override.pages(stack, uses);
+				if (pages != null && !pages.isEmpty()) return pages;
+			} catch (Throwable t) {
+				EmiForkDiag.log(15, "recipe override failed: " + t);
+			}
+		}
+		return null;
+	}
 }
