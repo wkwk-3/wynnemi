@@ -120,7 +120,13 @@ public final class WynnCatalog {
             @Nullable BoxFamily boxFamily,
             /** 表示用に解決済みのクエスト名 */
             @Nullable String requiredQuest,
-            ApiFacets facets) {}
+            ApiFacets facets) {
+
+        Entry withTooltip(ItemStack newStack, List<Component> newTooltip) {
+            return new Entry(key, group, newStack, displayName, plainName, newTooltip, obtain, craftProfessions,
+                    gatherProfession, level, aliases, favoriteName, boxFamily, requiredQuest, facets);
+        }
+    }
 
     /** セット装備。メンバーはカタログのキー */
     public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
@@ -424,6 +430,7 @@ public final class WynnCatalog {
                     tooltipFallbacks, Minecraft.getInstance().player != null);
             Wei.LOGGER.info("[WEI item] name sources: {} / data name and tooltip name differ: {} item(s)",
                     nameSourceCounts, nameMismatches);
+            retryEmptyTooltips();
             return new WynnCatalog(List.copyOf(entries), List.copyOf(sets), List.copyOf(aspects));
         }
 
@@ -527,6 +534,10 @@ public final class WynnCatalog {
             boolean mismatch = plainName != null && nameLine != null
                     && !Names.normalize(plainName).equals(Names.normalize(nameLine));
             if (mismatch) nameMismatches++;
+            if (entries.isEmpty() || tooltip.size() <= 1) {
+                Wei.LOGGER.info("[WEI item] context for #{}: player={} classType={} tooltipLines={}",
+                        entries.size() + 1, Minecraft.getInstance().player != null, safeClassType(), tooltip.size());
+            }
             Wei.LOGGER.info("[WEI item] #{} key='{}' group={} nameSource={} display='{}' dataName='{}' tooltipName='{}'{} "
                             + "nameLineIndex={} lines={} vanillaName='{}' class={} line0={} line1={}",
                     entries.size() + 1, key, group, nameSource, display.getString(), plainName, tooltipName,
@@ -633,6 +644,44 @@ public final class WynnCatalog {
         }
 
         private int tooltipFallbacks;
+
+        /**
+         * 一覧作成の最初のほうで、Wynntils が空の説明文を返すことがある（ログで最初の16件）。
+         * Wynntils のガイド用アイテムは一度作った説明文を覚えてしまうので、新しく作り直してもう一度取る。
+         */
+        private void retryEmptyTooltips() {
+            int retried = 0;
+            int fixed = 0;
+            for (int i = 0; i < entries.size(); i++) {
+                Entry e = entries.get(i);
+                if (e.tooltip().size() > 1) continue;
+                if (!(e.stack() instanceof com.wynntils.screens.guides.gear.GuideGearItemStack gear)) {
+                    Wei.LOGGER.warn("[WEI tooltip] RETRY skipped key='{}' class={} lines={} (only gear can be rebuilt)",
+                            e.key(), e.stack().getClass().getSimpleName(), e.tooltip().size());
+                    continue;
+                }
+                retried++;
+                var fresh = new com.wynntils.screens.guides.gear.GuideGearItemStack(gear.getGearInfo());
+                TooltipResult result = tooltipOf(fresh);
+                boolean ok = result.lines().size() > 1;
+                if (ok) {
+                    fixed++;
+                    entries.set(i, e.withTooltip(fresh, result.lines()));
+                }
+                Wei.LOGGER.info("[WEI tooltip] RETRY key='{}' -> {} line(s){}{}", e.key(), result.lines().size(),
+                        ok ? " FIXED" : " still empty", result.error() != null ? " error=" + result.error() : "");
+            }
+            Wei.LOGGER.info("[WEI tooltip] RETRY summary: {} retried, {} fixed (player={}, class={})", retried, fixed,
+                    Minecraft.getInstance().player != null, safeClassType());
+        }
+
+        private static String safeClassType() {
+            try {
+                return String.valueOf(Models.Character.getClassType());
+            } catch (Throwable t) {
+                return "error " + t;
+            }
+        }
         private int nameMismatches;
         private int structureLogs;
         private final Map<String, Integer> nameSourceCounts = new java.util.TreeMap<>();

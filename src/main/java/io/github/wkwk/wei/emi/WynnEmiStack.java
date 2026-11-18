@@ -28,7 +28,8 @@ public final class WynnEmiStack extends EmiStack {
     private final ItemStack stack;
     private final Component name;
     /** 不変の説明文。EMI は別スレッドの検索インデックス作成でも呼ぶので、Wynntils には問い合わせない */
-    private final List<Component> tooltip;
+    /** 空のまま作られた装備はホバー時に作り直すので final にしない */
+    private volatile List<Component> tooltip;
 
     private WynnEmiStack(String key, ItemStack stack, Component name, List<Component> tooltip) {
         this.key = key;
@@ -96,6 +97,29 @@ public final class WynnEmiStack extends EmiStack {
         return tooltip;
     }
 
+    /** 一覧作成時に空だった装備の説明文を、描画スレッドで1回だけ作り直す */
+    private void repairEmptyTooltip() {
+        if (tooltip.size() > 1 || !(stack instanceof com.wynntils.screens.guides.gear.GuideGearItemStack gear)
+                || !net.minecraft.client.Minecraft.getInstance().isSameThread() || repairAttempted) {
+            return;
+        }
+        repairAttempted = true;
+        if (false) {
+            return;
+        }
+        try {
+            var fresh = new com.wynntils.screens.guides.gear.GuideGearItemStack(gear.getGearInfo());
+            List<Component> lines = fresh.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.EMPTY,
+                    net.minecraft.client.Minecraft.getInstance().player, net.minecraft.world.item.TooltipFlag.NORMAL);
+            io.github.wkwk.wei.Wei.LOGGER.info("[WEI hover] REPAIR key='{}' -> {} line(s)", key, lines.size());
+            if (lines.size() > 1) tooltip = List.copyOf(lines);
+        } catch (Throwable t) {
+            io.github.wkwk.wei.Wei.LOGGER.warn("[WEI hover] REPAIR key='{}' failed", key, t);
+        }
+    }
+
+    private boolean repairAttempted;
+
     /** ホバーで説明文を出したキー（ログを1回だけにする） */
     private static final java.util.Set<String> HOVER_LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -110,6 +134,7 @@ public final class WynnEmiStack extends EmiStack {
                     tooltip.size() > 2 ? tooltip.get(2).getString().replaceAll("\\p{Co}", "?") : "-",
                     stack.getClass().getSimpleName());
         }
+        repairEmptyTooltip();
         List<ClientTooltipComponent> list = new ArrayList<>();
         for (Component line : getTooltipText()) {
             list.add(ClientTooltipComponent.create(line.getVisualOrderText()));
