@@ -17,6 +17,8 @@ jobs:
           done
           curl -sSfL -o data-dump/item_obtain_v2.json https://cdn.wynntils.com/static/Data-Storage/item_obtain_v2.json
           curl -sSfL -o data-dump/item_sets.json https://cdn.wynntils.com/static/Data-Storage/item_sets.json
+          curl -sSfL -o data-dump/api_item_database.json 'https://api.wynncraft.com/v3/item/database?fullResult'
+          curl -sSfL -o data-dump/api_item_metadata.json 'https://api.wynncraft.com/v3/item/metadata'
           ls -la data-dump
           git config user.name "github-actions"; git config user.email "actions@github.com"
           git add data-dump && git commit -m "Data dump" && git push
