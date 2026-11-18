@@ -43,5 +43,18 @@
   "wei.tooltip.box": "Press R to see what it can contain",
   "wei.tooltip.set_pieces": "%s pieces:",
   "wei.recipe.level": "Lv. %s",
-  "wei.recipe.requires_quest": "Requires: %s"
+  "wei.recipe.requires_quest": "Requires: %s",
+  "wei.search.title": "Item Search (filters)",
+  "wei.search.button": "Filters",
+  "wei.search.any": "Any",
+  "wei.search.name": "Name",
+  "wei.search.type": "Type",
+  "wei.search.tier": "Tier",
+  "wei.search.level": "Level",
+  "wei.search.attackSpeed": "Attack speed",
+  "wei.search.profession": "Profession",
+  "wei.search.ids": "IDs",
+  "wei.search.majorIds": "Major IDs",
+  "wei.search.apply": "Search",
+  "wei.search.clear": "Clear"
 }

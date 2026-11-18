@@ -4,7 +4,14 @@ import dev.emi.emi.fork.EmiForkApi;
 import io.github.wkwk.wei.data.WynnDataWatcher;
 import io.github.wkwk.wei.data.WynnFavoritesSync;
 import io.github.wkwk.wei.data.WynntilsDownloadListener;
+import io.github.wkwk.wei.data.WynnCatalog;
+import io.github.wkwk.wei.emi.WeiSearchScreen;
 import io.github.wkwk.wei.emi.WynnSearchExtension;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -22,6 +29,8 @@ public final class Wei implements ClientModInitializer {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
+    private static volatile boolean openSearchNextTick;
+
     @Override
     public void onInitializeClient() {
         WeiConfig.load();
@@ -38,6 +47,11 @@ public final class Wei implements ClientModInitializer {
             WynntilsDownloadListener.registerOnce();
             WynnDataWatcher.tick();
             WynnFavoritesSync.tick();
+            // /wei search はチャットが閉じたあとに開く
+            if (openSearchNextTick) {
+                openSearchNextTick = false;
+                client.setScreen(new WeiSearchScreen(client.screen));
+            }
         });
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> dispatcher.register(
@@ -49,11 +63,26 @@ public final class Wei implements ClientModInitializer {
                             ctx.getSource().sendFeedback(Component.translatable("wei.command.reload"));
                             return 1;
                         }))
+                        // 条件設定の画面を開く
+                        .then(ClientCommandManager.literal("search").executes(ctx -> {
+                            openSearchNextTick = true;
+                            return 1;
+                        }))
                         // Wynntils のデータからアイテム一覧を作り直す
                         .then(ClientCommandManager.literal("rebuild").executes(ctx -> {
                             WynnDataWatcher.requestRebuild();
                             ctx.getSource().sendFeedback(Component.translatable("wei.command.rebuild"));
                             return 1;
                         }))));
+
+        // Wynncraft のインベントリ・チェスト画面の左上に、条件設定の画面を開くボタンを置く
+        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            if (!(screen instanceof AbstractContainerScreen<?>) || !WynnCatalog.isOnWynncraftNow()) return;
+            Screens.getWidgets(screen).add(Button.builder(Component.translatable("wei.search.button"),
+                            b -> client.setScreen(new WeiSearchScreen(screen)))
+                    .bounds(2, 2, 60, 16)
+                    .tooltip(Tooltip.create(Component.translatable("wei.search.title")))
+                    .build());
+        });
     }
 }
