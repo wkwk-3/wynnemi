@@ -96,8 +96,20 @@ public final class WynnEmiStack extends EmiStack {
         return tooltip;
     }
 
+    /** ホバーで説明文を出したキー（ログを1回だけにする） */
+    private static final java.util.Set<String> HOVER_LOGGED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     @Override
     public List<ClientTooltipComponent> getTooltip() {
+        // 調査用（常に出す）: 実際に画面で説明文を出したとき、何を出したかを1回だけ記録する。描画スレッドのときだけ
+        if (net.minecraft.client.Minecraft.getInstance().isSameThread() && HOVER_LOGGED.add(key)) {
+            io.github.wkwk.wei.Wei.LOGGER.info("[WEI hover] key='{}' name='{}' tooltipLines={} line0='{}' line1='{}' line2='{}' stackClass={}",
+                    key, name.getString(), tooltip.size(),
+                    tooltip.size() > 0 ? tooltip.get(0).getString().replaceAll("\\p{Co}", "?") : "-",
+                    tooltip.size() > 1 ? tooltip.get(1).getString().replaceAll("\\p{Co}", "?") : "-",
+                    tooltip.size() > 2 ? tooltip.get(2).getString().replaceAll("\\p{Co}", "?") : "-",
+                    stack.getClass().getSimpleName());
+        }
         List<ClientTooltipComponent> list = new ArrayList<>();
         for (Component line : getTooltipText()) {
             list.add(ClientTooltipComponent.create(line.getVisualOrderText()));

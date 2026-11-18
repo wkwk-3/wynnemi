@@ -422,6 +422,8 @@ public final class WynnCatalog {
             io.github.wkwk.wei.Diag.log(3, "Hidden from the item list: {}", hiddenCounts);
             Wei.LOGGER.info("[WEI tooltip] build summary: {} item(s) fell back to the vanilla name (player at build time: {})",
                     tooltipFallbacks, Minecraft.getInstance().player != null);
+            Wei.LOGGER.info("[WEI item] name sources: {} / data name and tooltip name differ: {} item(s)",
+                    nameSourceCounts, nameMismatches);
             return new WynnCatalog(List.copyOf(entries), List.copyOf(sets), List.copyOf(aspects));
         }
 
@@ -509,6 +511,35 @@ public final class WynnCatalog {
             if (fallback) {
                 TOOLTIP_FALLBACK_KEYS.add(key);
                 Wei.LOGGER.warn("[WEI tooltip] FALLBACK key='{}' display='{}'", key, display.getString());
+            }
+
+            // ---- 全アイテムの表示名の決まり方（常に出す）
+            String nameSource = plainName != null ? "data" : nameLine != null ? "tooltipLine" : "vanilla";
+            nameSourceCounts.merge(group + ":" + nameSource, 1, Integer::sum);
+            int nameLineIndex = -1;
+            for (int i = 0; i < tooltip.size(); i++) {
+                if (!Names.strip(tooltip.get(i).getString()).trim().isEmpty()) {
+                    nameLineIndex = i;
+                    break;
+                }
+            }
+            String tooltipName = nameLine == null ? "" : nameLine;
+            boolean mismatch = plainName != null && nameLine != null
+                    && !Names.normalize(plainName).equals(Names.normalize(nameLine));
+            if (mismatch) nameMismatches++;
+            Wei.LOGGER.info("[WEI item] #{} key='{}' group={} nameSource={} display='{}' dataName='{}' tooltipName='{}'{} "
+                            + "nameLineIndex={} lines={} vanillaName='{}' class={} line0={} line1={}",
+                    entries.size() + 1, key, group, nameSource, display.getString(), plainName, tooltipName,
+                    mismatch ? " NAME-MISMATCH" : "", nameLineIndex, tooltip.size(), stack.getHoverName().getString(),
+                    stack.getClass().getSimpleName(),
+                    tooltip.isEmpty() ? "-" : escape(tooltip.get(0).getString()),
+                    tooltip.size() < 2 ? "-" : escape(tooltip.get(1).getString()));
+            // 先頭の数件と、名前の行が見つからない・名前が食い違うものは、行の中身の構造（フォントなど）まで出す
+            if (structureLogs < 30 || nameLine == null || mismatch) {
+                structureLogs++;
+                for (int i = 0; i < Math.min(3, tooltip.size()); i++) {
+                    Wei.LOGGER.info("[WEI item]    line{} structure: {}", i, tooltip.get(i));
+                }
             }
 
             String favoriteName = extra.favoriteName() != null ? extra.favoriteName() : plain;
@@ -602,6 +633,23 @@ public final class WynnCatalog {
         }
 
         private int tooltipFallbacks;
+        private int nameMismatches;
+        private int structureLogs;
+        private final Map<String, Integer> nameSourceCounts = new java.util.TreeMap<>();
+
+        /** 私用領域の文字や制御文字を \\uXXXX にして、ログで見えるようにする */
+        private static String escape(String s) {
+            StringBuilder sb = new StringBuilder("'");
+            s.codePoints().forEach(cp -> {
+                if (Character.getType(cp) == Character.PRIVATE_USE || Character.isISOControl(cp)
+                        || Character.getType(cp) == Character.SURROGATE) {
+                    sb.append(String.format("\\u{%X}", cp));
+                } else {
+                    sb.appendCodePoint(cp);
+                }
+            });
+            return sb.append("'").toString();
+        }
 
         /** 飾り文字を除いて文字が残る最初の行（名前の行）。無ければ null */
         private static @Nullable String firstTextLine(List<Component> lines) {
