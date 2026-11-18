@@ -1,0 +1,22 @@
+name: Data dump
+on:
+  push:
+    branches: [data-dump]
+    paths: [.github/workflows/data-dump.yml]
+permissions:
+  contents: write
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p data-dump
+          for f in gear ingredients materials charms tomes aspects; do
+            curl -sSfL -o data-dump/$f.json https://cdn.wynntils.com/static/Reference/$f.json
+          done
+          curl -sSfL -o data-dump/item_obtain_v2.json https://cdn.wynntils.com/static/Data-Storage/item_obtain_v2.json
+          curl -sSfL -o data-dump/item_sets.json https://cdn.wynntils.com/static/Data-Storage/item_sets.json
+          ls -la data-dump
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add data-dump && git commit -m "Data dump" && git push
