@@ -151,6 +151,13 @@ public final class WynnCatalog {
         return sets;
     }
 
+    /** 説明文が作れずバニラの名前で代用したアイテムのキー（ホバー時の調査ログ用） */
+    private static final java.util.Set<String> TOOLTIP_FALLBACK_KEYS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public static boolean isTooltipFallback(String key) {
+        return TOOLTIP_FALLBACK_KEYS.contains(key);
+    }
+
     public static WynnCatalog current() {
         return current;
     }
@@ -233,6 +240,7 @@ public final class WynnCatalog {
         private final List<AspectSnapshot> aspects = new ArrayList<>();
 
         Build() {
+            TOOLTIP_FALLBACK_KEYS.clear();
             // 入手元は API の情報と有志のデータを合わせたもの（Wynntils のツールチップと同じ）を使う
             // 外すかどうかの判定も各アイテムの処理の中で行う（計画の段階で 5000 件を一度に見ると1ティックが重くなる）
             group("gear", () -> Models.Gear.getAllGearInfos()
@@ -412,6 +420,8 @@ public final class WynnCatalog {
 
         WynnCatalog result() {
             io.github.wkwk.wei.Diag.log(3, "Hidden from the item list: {}", hiddenCounts);
+            Wei.LOGGER.info("[WEI tooltip] build summary: {} item(s) fell back to the vanilla name (player at build time: {})",
+                    tooltipFallbacks, Minecraft.getInstance().player != null);
             return new WynnCatalog(List.copyOf(entries), List.copyOf(sets), List.copyOf(aspects));
         }
 
@@ -454,11 +464,29 @@ public final class WynnCatalog {
         }
 
         private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra) {
-            List<Component> tooltip = tooltipOf(stack);
-            Component display = !tooltip.isEmpty() && !tooltip.get(0).getString().isBlank()
-                    ? tooltip.get(0)
-                    : stack.getHoverName();
+            TooltipResult result = tooltipOf(stack);
+            List<Component> tooltip = result.lines();
+            boolean fallback = tooltip.isEmpty() || tooltip.get(0).getString().isBlank();
+            Component display = !fallback ? tooltip.get(0) : stack.getHoverName();
             if (tooltip.isEmpty()) tooltip = List.of(display);
+            if (fallback) {
+                tooltipFallbacks++;
+                // 原因調査用。設定に関係なく常に出す
+                String why = result.error() != null ? "exception " + result.error()
+                        : result.lines().isEmpty() ? "empty tooltip" : "blank first line (" + result.lines().size() + " lines)";
+                Wei.LOGGER.warn("[WEI tooltip] FALLBACK #{} group={} name='{}' stackClass={} vanillaName='{}' player={} cause={} detail={}",
+                        tooltipFallbacks, group, plainName, stack.getClass().getName(), stack.getHoverName().getString(),
+                        Minecraft.getInstance().player != null, why, describeForLog(stack));
+                if (result.error() != null) {
+                    if (tooltipFallbacks <= 20) {
+                        Wei.LOGGER.warn("[WEI tooltip] stack trace for '{}':", plainName, result.error());
+                    } else {
+                        StackTraceElement[] st = result.error().getStackTrace();
+                        Wei.LOGGER.warn("[WEI tooltip] (trace omitted after 20) top frames: {} | {} | {}",
+                                st.length > 0 ? st[0] : "-", st.length > 1 ? st[1] : "-", st.length > 2 ? st[2] : "-");
+                    }
+                }
+            }
 
             String plain = plainName != null ? plainName : Names.strip(display.getString());
             if (plain.isBlank()) plain = Names.strip(stack.getHoverName().getString());
@@ -467,6 +495,10 @@ public final class WynnCatalog {
             int n = 2;
             while (!keys.add(key)) {
                 key = group + "/" + plain + "#" + n++;
+            }
+            if (fallback) {
+                TOOLTIP_FALLBACK_KEYS.add(key);
+                Wei.LOGGER.warn("[WEI tooltip] FALLBACK key='{}' display='{}'", key, display.getString());
             }
 
             String favoriteName = extra.favoriteName() != null ? extra.favoriteName() : plain;
@@ -559,12 +591,16 @@ public final class WynnCatalog {
             });
         }
 
-        private static List<Component> tooltipOf(ItemStack stack) {
+        private int tooltipFallbacks;
+
+        record TooltipResult(List<Component> lines, @Nullable Throwable error) {}
+
+        private static TooltipResult tooltipOf(ItemStack stack) {
             try {
-                return List.copyOf(stack.getTooltipLines(
-                        Item.TooltipContext.EMPTY, Minecraft.getInstance().player, TooltipFlag.NORMAL));
+                return new TooltipResult(List.copyOf(stack.getTooltipLines(
+                        Item.TooltipContext.EMPTY, Minecraft.getInstance().player, TooltipFlag.NORMAL)), null);
             } catch (Throwable t) {
-                return List.of();
+                return new TooltipResult(List.of(), t);
             }
         }
 
@@ -624,5 +660,27 @@ public final class WynnCatalog {
             }
         }
         return sb.toString();
+    }
+
+    /** 調査ログ用: Wynntils のガイド用アイテムなら、元になったデータの要点を書き出す */
+    static String describeForLog(ItemStack stack) {
+        try {
+            if (stack instanceof com.wynntils.screens.guides.gear.GuideGearItemStack gear) {
+                var g = gear.getGearInfo();
+                StringBuilder sb = new StringBuilder();
+                sb.append("gear{type=").append(g.type()).append(", tier=").append(g.tier())
+                        .append(", level=").append(g.requirements().level())
+                        .append(", preIdentified=").append(g.metaInfo().preIdentified())
+                        .append(", material=").append(g.metaInfo().material())
+                        .append(", powderSlots=").append(g.powderSlots())
+                        .append(", majorIds=").append(g.fixedStats().majorIds().size())
+                        .append(", stats=[");
+                for (var stat : g.variableStats()) sb.append(stat.key().getApiName()).append(' ');
+                return sb.append("]}").toString();
+            }
+            return stack.getItem().toString() + " components=" + stack.getComponents();
+        } catch (Throwable t) {
+            return "(describe failed: " + t + ")";
+        }
     }
 }
