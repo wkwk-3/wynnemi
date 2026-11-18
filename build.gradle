@@ -15,6 +15,8 @@ repositories {
     // libs/wei-emi-bundled.jar（emi/ のビルド結果）を座標で参照するため。
     // Loom の同梱（include）はファイルを直接は受け付けない
     flatDir { dirs "libs" }
+    // Mod Menu（設定画面の入り口。入っていなくても WEI は動く）
+    maven { url "https://maven.terraformersmc.com/releases" }
 }
 
 // Wynntils は Maven で配布されていないため libs/ に置いた jar を参照する。
@@ -40,6 +42,7 @@ dependencies {
     // フォークした EMI。コンパイルに使い、jar の中に同梱する（プレイヤーは WEI の jar 1 つを入れればよい）
     libJar("wei-emi-bundled")
     modCompileOnly "local:wei-emi:bundled"
+    modCompileOnly "com.terraformersmc:modmenu:17.0.1"
     include "local:wei-emi:bundled"
 }
 

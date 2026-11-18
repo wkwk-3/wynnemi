@@ -15,6 +15,9 @@
     ],
     "emi": [
       "io.github.wkwk.wei.emi.WeiEmiPlugin"
+    ],
+    "modmenu": [
+      "io.github.wkwk.wei.config.WeiModMenu"
     ]
   },
   "depends": {
