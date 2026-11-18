@@ -112,9 +112,15 @@ public final class Wei implements ClientModInitializer {
                             return 1;
                         }))));
 
-        // Wynncraft のインベントリ・チェスト画面の左上に、条件設定の画面を開くボタンを置く
+        // Wynncraft のインベントリ・報酬チェストの左上に、条件設定の画面を開くボタンを置く
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-            if (!(screen instanceof AbstractContainerScreen<?>) || !WynnCatalog.isOnWynncraftNow()) return;
+            if (!WynnCatalog.isOnWynncraftNow()) return;
+            // 自分のインベントリと報酬チェストだけ（Wynncraft 独自のメニュー画面には出さない）
+            boolean inventory = screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+            boolean rewardChest = screen instanceof AbstractContainerScreen<?>
+                    && io.github.wkwk.wei.loot.LootHighlight.isRewardChest(
+                            com.wynntils.core.components.Models.Container.getCurrentContainer());
+            if (!inventory && !rewardChest) return;
             Screens.getButtons(screen).add(Button.builder(Component.translatable("wei.search.button"),
                             b -> client.setScreen(new WeiSearchScreen(screen)))
                     .bounds(2, 2, 60, 16)

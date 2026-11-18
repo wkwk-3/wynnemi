@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class WeiSearchScreen extends Screen {
     private static final String[] TYPES = {"", "weapon", "armour", "accessory", "tome", "charm", "tool", "ingredient", "material"};
-    private static final String[] ITEM_TIERS = {"normal", "unique", "rare", "legendary", "set", "fabled", "mythic"};
+    private static final String[] ITEM_TIERS = {"normal", "unique", "rare", "legendary", "fabled", "mythic"};
     private static final String[] INGREDIENT_TIERS = {"tier_0", "tier_1", "tier_2", "tier_3"};
     private static final String[] ATTACK_SPEEDS = {"", "superSlow", "verySlow", "slow", "normal", "fast", "veryFast", "superFast"};
     private static final String[] CRAFTING = {"", "alchemism", "armouring", "cooking", "jeweling", "scribing", "tailoring", "weaponsmithing", "woodworking"};

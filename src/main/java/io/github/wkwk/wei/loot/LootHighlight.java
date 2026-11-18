@@ -39,8 +39,14 @@ public final class LootHighlight {
     private record Price(OptionalLong value, long checkedAt) {}
 
     private final Map<ItemStack, Price> prices = new IdentityHashMap<>();
+    /** 同じ画面で鳴らしすぎないための間隔 */
+    private static final long SOUND_INTERVAL_NANOS = 1_000_000_000L;
+
     private Screen screen;
-    private boolean soundPlayed;
+    private String priceType = "";
+    /** 高額と判定したスロット → そのときのアイテム名（中身が入れ替わったら新しい当たりとして鳴らす） */
+    private final Map<Integer, String> flagged = new java.util.HashMap<>();
+    private long lastSoundAt;
 
     public static void registerOnce() {
         if (registered) return;
@@ -52,7 +58,7 @@ public final class LootHighlight {
         }
     }
 
-    static boolean isRewardChest(Container container) {
+    public static boolean isRewardChest(Container container) {
         return container instanceof LootChestContainer
                 || container instanceof LootrunRewardChestContainer
                 || container instanceof RaidRewardChestContainer
@@ -72,11 +78,17 @@ public final class LootHighlight {
         if (container == null || !isRewardChest(container)) return;
         if (!WynnventoryPrices.isAvailable()) return;
 
+        if (!config.lootHighlightPrice.equals(priceType)) {
+            // 判定に使う価格の種類が変わった
+            priceType = config.lootHighlightPrice;
+            prices.clear();
+        }
         if (event.getScreen() != screen) {
             // 別のチェストを開いた
             screen = event.getScreen();
             prices.clear();
-            soundPlayed = false;
+            flagged.clear();
+            lastSoundAt = 0;
             Diag.log(14, "Reward chest opened: {} (price={}, threshold={} LE)",
                     container.getClass().getSimpleName(), config.lootHighlightPrice, config.lootHighlightThresholdLe);
         }
@@ -89,9 +101,13 @@ public final class LootHighlight {
         int y = slot.y;
         event.getGuiGraphics().fill(x, y, x + 16, y + 16, config.lootHighlightColor);
 
-        if (!soundPlayed) {
-            soundPlayed = true;
-            Diag.log(14, "High value item: '{}' = {} emeralds ({} LE)", stack.getHoverName().getString(),
+        // 初めての当たり、または同じスロットの中身が入れ替わって（ローランのリロールなど）また当たったとき
+        String name = stack.getHoverName().getString();
+        if (!name.equals(flagged.put(slot.index, name))) {
+            long now = System.nanoTime();
+            if (lastSoundAt != 0 && now - lastSoundAt < SOUND_INTERVAL_NANOS) return;
+            lastSoundAt = now;
+            Diag.log(14, "High value item: '{}' = {} emeralds ({} LE)", name,
                     price.getAsLong(), String.format("%.2f", price.getAsLong() / 4096.0));
             if (config.lootHighlightSound) {
                 Minecraft.getInstance().getSoundManager()
