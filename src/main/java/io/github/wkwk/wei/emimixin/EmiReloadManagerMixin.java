@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import net.minecraft.client.Minecraft;
+import io.github.wkwk.wei.emihook.WeiHooked;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * その後 10 秒以内に届いた片割れは数えない（数えると次の合図で二重に読み込む）。
  */
 @Mixin(value = EmiReloadManager.class, remap = false)
-public abstract class EmiReloadManagerMixin {
+public abstract class EmiReloadManagerMixin implements WeiHooked {
     @Unique
     private static final long WEI_SYNC_FALLBACK_MS = 3_000;
     @Unique

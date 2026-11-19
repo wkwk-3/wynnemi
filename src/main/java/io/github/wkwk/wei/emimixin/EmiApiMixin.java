@@ -7,6 +7,7 @@ import dev.emi.emi.api.stack.EmiIngredient;
 import io.github.wkwk.wei.emihook.EmiHooks;
 import java.util.List;
 import java.util.Map;
+import io.github.wkwk.wei.emihook.WeiHooked;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** R/U のレシピ画面の差し替え口（手持ちの未鑑定ボックス用）。 */
 @Mixin(value = EmiApi.class, remap = false)
-public abstract class EmiApiMixin {
+public abstract class EmiApiMixin implements WeiHooked {
     @Invoker("setPages")
     private static void wei$setPages(Map<EmiRecipeCategory, List<EmiRecipe>> recipes, EmiIngredient stack) {
         throw new AssertionError();

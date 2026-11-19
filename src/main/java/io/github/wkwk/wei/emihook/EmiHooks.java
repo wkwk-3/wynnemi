@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -63,6 +64,54 @@ public final class EmiHooks {
 
     public static void mark(String hook) {
         if (applied.add(hook)) Diag.log(13, "EMI hook active: {}", hook);
+    }
+
+    /** Mixin の当たり先。PF-EMI の更新でクラスが無くなる・変わると、目印が付かない */
+    private static final List<String> HOOKED_CLASSES = List.of(
+            "dev.emi.emi.api.EmiApi",
+            "dev.emi.emi.runtime.EmiFavorites",
+            "dev.emi.emi.runtime.EmiReloadManager",
+            "dev.emi.emi.runtime.EmiReloadManager$ReloadWorker",
+            "dev.emi.emi.screen.EmiScreenManager",
+            "dev.emi.emi.runtime.EmiSidebars",
+            "dev.emi.emi.search.EmiSearch$SearchWorker");
+
+    private static volatile boolean verified;
+
+    /**
+     * EMI の初回読み込みの最後に 1 回だけ、差し込みが効いたかを確かめる。
+     * 効いていなければ調査用ログの設定にかかわらず警告する（PF-EMI の更新で黙って機能が止まるのを防ぐ）。
+     * 使ったときにしか通らない差し込み（R/U・ハイライトなど）はクラス単位でしか確かめられない。
+     */
+    public static void verifyHooks(boolean persistentDataExists) {
+        if (verified) return;
+        verified = true;
+        List<String> missing = new ArrayList<>();
+        ClassLoader loader = EmiHooks.class.getClassLoader();
+        for (String name : HOOKED_CLASSES) {
+            try {
+                if (!WeiHooked.class.isAssignableFrom(Class.forName(name, false, loader))) missing.add(name);
+            } catch (Throwable t) {
+                missing.add(name + " (not found)");
+            }
+        }
+        // 読み込みのたびに必ず通る差し込み。history は emi.json があるときだけ読まれる
+        List<String> expected = new ArrayList<>(List.of("loadGate", "search"));
+        if (persistentDataExists) expected.add("history");
+        for (String hook : expected) if (!applied.contains(hook)) missing.add("hook " + hook);
+        if (missing.isEmpty()) {
+            Diag.log(13, "EMI hooks verified ({})", emiVersion());
+            return;
+        }
+        Wei.LOGGER.warn("[WEI] Some PF-EMI hooks did not apply (PF-EMI {}): {}. "
+                + "Related WEI features (search terms, favorites/history keeping, box R/U) may not work.",
+                emiVersion(), missing);
+    }
+
+    private static String emiVersion() {
+        return FabricLoader.getInstance().getModContainer("emi")
+                .map(m -> m.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
     }
 
     // ---- 検索

@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      WYNNTILS_TAG: v4.2.17
+      WYNNTILS_TAG: v4.2.18
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,8 @@ jobs:
           gh release download "$WYNNTILS_TAG" -R Wynntils/Wynntils -p '*abric*.jar' -D dl-wynntils
           ls dl-wynntils
           cp "$(ls dl-wynntils/*.jar | grep -vi sources | head -1)" libs/wynntils.jar
+          # fabric.mod.json の依存範囲と照らすため、MOD としてのバージョンを出す
+          unzip -p libs/wynntils.jar fabric.mod.json | grep -m1 '"version"'
 
       # emi/（PF-EMI のソース、無改造）をビルドして、MOD 本体のコンパイルだけに使う（同梱しない）
       - name: Build EMI fork
@@ -44,6 +46,11 @@ jobs:
           ./gradlew :fabric:remapJar --stacktrace
           ls fabric/build/libs
           cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/pf-emi-compile.jar
+          unzip -p ../libs/pf-emi-compile.jar fabric.mod.json | grep -m1 '"version"'
+
+      # 一時的: SNAPSHOT をやめるため、Loom の公開済みバージョンを確かめる
+      - name: List Loom versions
+        run: curl -s https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml | grep -o '<version>1\.1[45][^<]*' | tail -20
 
       - name: Build
         run: |

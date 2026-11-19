@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.spongepowered.asm.mixin.Final;
+import io.github.wkwk.wei.emihook.WeiHooked;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** WEI の検索語で絞り込み・並べ替えを足す。 */
 @Mixin(targets = "dev.emi.emi.search.EmiSearch$SearchWorker", remap = false)
-public abstract class SearchWorkerMixin {
+public abstract class SearchWorkerMixin implements WeiHooked {
     @Shadow
     @Final
     @Mutable

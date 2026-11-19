@@ -10,6 +10,7 @@ import dev.emi.emi.runtime.EmiSidebars;
 import io.github.wkwk.wei.emihook.EmiHooks;
 import java.util.ArrayList;
 import java.util.List;
+import io.github.wkwk.wei.emihook.WeiHooked;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** 読めなかった検索履歴を保持し、保存時に書き戻す。一時スタックは履歴に入れない。 */
 @Mixin(value = EmiSidebars.class, remap = false)
-public abstract class EmiSidebarsMixin {
+public abstract class EmiSidebarsMixin implements WeiHooked {
     @Unique
     private static List<JsonElement> wei$unresolved = new ArrayList<>();
 

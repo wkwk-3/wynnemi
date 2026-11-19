@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import io.github.wkwk.wei.emihook.WeiHooked;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * EMI は EmiSearch.compiledQuery（WEI の語を除いた残り）だけで判定するため。
  */
 @Mixin(value = EmiScreenManager.class, remap = false)
-public abstract class EmiScreenManagerMixin {
+public abstract class EmiScreenManagerMixin implements WeiHooked {
     /** この描画での判定表。WEI の条件が無ければ null */
     @Unique
     private static Map<EmiStack, Boolean> wei$highlight;

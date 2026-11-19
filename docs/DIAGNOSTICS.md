@@ -1,7 +1,7 @@
 # 実機テスト用の診断ログ
 
 ログ（`logs/latest.log`）の行の先頭に `[WEI diag#番号]` が付きます。番号はコードレビューで挙げた問題の番号です。
-止めるには `config/wei.json` の `"diagnostics": false`（WEI 本体）か、JVM 引数 `-Dwei.diag=false`（本体とフォークの両方）。
+プレリリース版では既定で出て、正式リリース版では出ません。設定画面の「診断ログ」（自動／オン／オフ、`config/wei.json` の `diagnosticsOverride`）か、JVM 引数 `-Dwei.diag=true|false`（最優先）で切り替えられます。
 
 `grep "WEI diag#1" logs/latest.log` のように番号で絞り込めます。
 
@@ -16,7 +16,7 @@
 | 7 | 手持ちのアイテムが別のアイテムとして扱われる | インベントリ・銀行のアイテム（クラフト品や改名した物を含む）で R/U | `Inventory item matched BY NAME` / `Inventory item key not in catalog` |
 | 8 | 否定が効かない | 検索で `-rarity:mythic` | `Negated WEI term ... is not supported` |
 | 9 | 説明文が古いまま | Wynntils でお気に入りの星を付け外しする | `Wynntils favorites changed after the catalog was built` |
-| 10 | 同梱のフォークではない EMI が読み込まれる | 起動するだけ | `EMI loaded: name=... containedIn=...`（`containedIn=wei` なら同梱のフォーク）、`wei_emi provided: false` |
+| 10 | EMI（PF-EMI）・Wynntils のバージョン | 起動するだけ | `No mod with id 'emi' is loaded`、または想定外の `EMI loaded: ... version=...` |
 | 12 | Wynncraft で EMI が読み込まれない（タグかレシピの片方しか届かない） | ログインする | `Only the tags signal arrived; reloading in 3000ms` の後に `Sync fallback FIRED`、続いて `EMI reload requested` と `EMI reload finished`。`Sync fallback cancelled` だけで終わり、`EMI reload finished` が無ければ未解決 |
 | 13 | 名前の先頭のアイコン文字（U+100002 など）が消えず、名前で見つからない | 取引所・銀行で、名前の前にアイコンが付いたアイテムで R | `Inventory item matched BY NAME: '󐀂Name' ... -> no match` が出なくなり、`-> gear/Name` などになれば解決 |
 | 11 | EMI の再読み込みの呼び出しに失敗する | ログインなど | `EMI reload method not found` |
@@ -45,4 +45,4 @@
 
 - 調査用ログ（`[WEI diag#…]`）は、プレリリース（バージョンに「-」を含む）では既定で出し、リリースでは出さない。`config/wei.json` の `diagnosticsOverride`（true / false。旧版の `diagnostics` は無視）か JVM 引数 `-Dwei.diag=true|false` で上書きできる。
 - リリースで常に出るのは、起動・一覧の完成（1 行）・失敗や機能停止の警告だけ。
-- #13: `EMI hook active: <名前>`。PF-EMI に差し込めた Mixin（search / syncFallback / loadGate / favorites / history / recipeOverride / highlight）。highlight は検索欄のハイライト表示を初めて使ったときに出る。
+- #13: `EMI hook active: <名前>`。PF-EMI に差し込めた Mixin（search / syncFallback / loadGate / favorites / history / recipeOverride / highlight）。highlight は検索欄のハイライト表示を初めて使ったときに出る。初回の読み込みの最後に `EMI hooks verified` が出る。差し込めなかったものがあると、設定にかかわらず `[WEI] Some PF-EMI hooks did not apply` の警告が出る。

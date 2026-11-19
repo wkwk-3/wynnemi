@@ -63,13 +63,24 @@ public final class WynnventoryPrices {
                 resolveGearBox = snapshot.getMethod("resolveGearBoxItem", box);
             } catch (ReflectiveOperationException e) {
                 resolveGearBox = null;
-                Diag.warn(14, "Wynnventory has no gear box price lookup; unidentified boxes are not checked");
+                Wei.LOGGER.warn("[WEI] Wynnventory {} has no gear box price lookup; unidentified boxes are not checked",
+                        wynnventoryVersion());
             }
             available = true;
             Diag.log(14, "Using Wynnventory prices (gear box lookup: {})", resolveGearBox != null);
         } catch (Throwable t) {
-            Wei.LOGGER.warn("Wynnventory was found but its price classes have changed; loot highlight is off", t);
+            Wei.LOGGER.warn("[WEI] Wynnventory {} was found but its price classes have changed; loot highlight is off",
+                    wynnventoryVersion(), t);
         }
+    }
+
+    private static final String VERSION = FabricLoader.getInstance().getModContainer("wynnventory")
+            .map(m -> m.getMetadata().getVersion().getFriendlyString())
+            .orElse("unknown");
+    private static final String LOOKUP_WHERE = "WynnventoryPrices: price lookup (Wynnventory " + VERSION + ")";
+
+    private static String wynnventoryVersion() {
+        return VERSION;
     }
 
     /**
@@ -91,7 +102,8 @@ public final class WynnventoryPrices {
             }
             return valueOf(resolveSnapshot.invoke(null, stack), priceType);
         } catch (Throwable t) {
-            Diag.once(14, "error:" + t.getClass().getName(), "Wynnventory price lookup failed: {}", t.toString());
+            // メソッド名の変更などは毎回失敗するので、調査用ログの設定にかかわらず種類ごとに 1 回警告する
+            Diag.swallowed(LOOKUP_WHERE, t);
             return OptionalLong.empty();
         }
     }

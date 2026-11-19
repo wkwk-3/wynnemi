@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import io.github.wkwk.wei.emihook.WeiHooked;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** 読めなかったお気に入りを保持し、保存時に書き戻す（EMI は破棄する）。 */
 @Mixin(value = EmiFavorites.class, remap = false)
-public abstract class EmiFavoritesMixin {
+public abstract class EmiFavoritesMixin implements WeiHooked {
     /** load 中のみ: stack 要素 → お気に入り 1 件の JSON */
     @Unique
     private static Map<JsonElement, JsonObject> wei$owners = Map.of();

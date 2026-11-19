@@ -5,8 +5,8 @@ Wynn Enough Items
 JEI / REI / EMI のような、Wynncraft 用のアイテムビューアー MOD です。Wynntils が持っているアイテムデータを、EMI（PF-EMI）の画面で一覧・検索し、入手元や使い道まで調べられます。Fabric 用のクライアント MOD です。
 
 - 対応: Minecraft 1.21.11 / Fabric
-- 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、Fabric API
-  - [PF-EMI](https://modrinth.com/mod/pf-emi)（1.21.11 用の EMI）を**別に入れてください**。WEI は EMI を同梱しません。WEI に必要な EMI 側の変更（WEI 専用の検索語、読み込みの待ち合わせ、読めないお気に入りの保持、未鑑定ボックスのレシピ画面、Wynncraft での再読み込み）は Mixin で差し込んでいます。PF-EMI の更新で差し込めなくなった所は、その機能だけ止まります（ログの `[WEI emi-hook] active:` で確認できます）
+- 必須: [Wynntils](https://modrinth.com/mod/wynntils)（4.2.18 以降）、Fabric API
+  - [PF-EMI](https://modrinth.com/mod/pf-emi)（1.21.11 用の EMI、1.1.23-pf.18 以降）を**別に入れてください**。WEI は EMI を同梱しません。WEI に必要な EMI 側の変更（WEI 専用の検索語、読み込みの待ち合わせ、読めないお気に入りの保持、未鑑定ボックスのレシピ画面、Wynncraft での再読み込み）は Mixin で差し込んでいます。PF-EMI の更新で差し込めなくなった所は、その機能だけ止まり、ログに `[WEI] Some PF-EMI hooks did not apply` の警告が出ます
   - 必要なものが足りなければ Fabric が起動を止めて不足を表示します
 
 ## できること
@@ -74,9 +74,9 @@ push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）�
 ### 手元でビルド
 
 1. `libs/wynntils*.jar` に Wynntils の Fabric 版（1.21.11）を置く
-2. `cd emi && ./gradlew :fabric:remapJar` で EMI のフォークをビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/wei-emi-bundled.jar` としてコピー
+2. `cd emi && ./gradlew :fabric:remapJar` で PF-EMI をビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/pf-emi-compile.jar` としてコピー（コンパイル専用）
 3. ルートで `./gradlew build`
-4. `build/libs/wei-<version>.jar` を mods フォルダへ（EMI は同梱済み）
+4. `build/libs/wei-<version>.jar` を mods フォルダへ。PF-EMI（1.1.23-pf.18 以降）と Wynntils（4.2.18 以降）は別途入れる
 
 ## 既知の問題
 
