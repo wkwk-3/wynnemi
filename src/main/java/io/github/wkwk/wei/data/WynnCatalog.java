@@ -81,8 +81,16 @@ public final class WynnCatalog {
             /** ID の API 名（小文字）→ 取りうる最大値。並び替えに使う */
             Map<String, Integer> identifications,
             /** Major ID の名前（英数字だけの小文字） */
-            Set<String> majorIds) {
+            Set<String> majorIds,
+            /** 必要スキル（str / dex / int / def / agi → 必要ポイント、0 は書かない）。装備以外は空 */
+            Map<String, Integer> skillRequirements) {
         public static final ApiFacets NONE = new ApiFacets(null, null, null, null, 0, Set.of(), Map.of(), Set.of());
+
+        /** 必要スキルの無いもの */
+        public ApiFacets(@Nullable String type, @Nullable String subType, @Nullable String tier, @Nullable String attackSpeed,
+                int level, Set<String> professions, Map<String, Integer> identifications, Set<String> majorIds) {
+            this(type, subType, tier, attackSpeed, level, professions, identifications, majorIds, Map.of());
+        }
     }
 
     /** アイテムごとの追加情報（カタログ構築時に Wynntils から取り出しておく） */

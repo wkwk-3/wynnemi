@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -16,8 +18,14 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 公式サイトのアイテム検索（https://wynncraft.com/help/item-guide）のような条件設定画面。
- * 選んだ条件を WEI の検索語（type: tier: levelRange: など）にして EMI の検索欄に入れる。通信はしない。
+ * Wynncraft 用の条件検索（公式サイトのアイテム検索に近い画面）。
+ * 選んだ条件を WEI の検索語にして EMI の検索欄に入れる。通信はしない。
+ *
+ * <pre>
+ *  左の列: 名前 / 種類・詳細 / ティア / レベル / 攻撃速度 / 職業
+ *  右の列: 必要スキル（5 種の範囲）/ スキルボーナス（5 種の範囲）/ ID / メジャー ID
+ *  下:     できあがる検索語 / 検索・クリア・閉じる
+ * </pre>
  */
 public final class WeiSearchScreen extends Screen {
     private static final String[] TYPES = {"", "weapon", "armour", "accessory", "tome", "charm", "tool", "ingredient", "material"};
@@ -26,6 +34,13 @@ public final class WeiSearchScreen extends Screen {
     private static final String[] ATTACK_SPEEDS = {"", "superSlow", "verySlow", "slow", "normal", "fast", "veryFast", "superFast"};
     private static final String[] CRAFTING = {"", "alchemism", "armouring", "cooking", "jeweling", "scribing", "tailoring", "weaponsmithing", "woodworking"};
     private static final String[] GATHERING = {"", "mining", "fishing", "farming", "woodcutting"};
+    /** 必要スキルの検索キー（strReq など）と、スキルボーナスの ID 名 */
+    private static final String[] SKILLS = {"str", "dex", "int", "def", "agi"};
+    private static final String[] SKILL_BONUS_IDS = {"rawStrength", "rawDexterity", "rawIntelligence", "rawDefence", "rawAgility"};
+
+    private static final int ROW = 20;
+    private static final int LABEL = 0xFFE0E0E0;
+    private static final int HEADER = 0xFFFFD27F;
 
     private static String[] subTypes(String type) {
         return switch (type) {
@@ -49,20 +64,23 @@ public final class WeiSearchScreen extends Screen {
     private String name = "";
     private String levelMin = "";
     private String levelMax = "";
+    private final String[] reqMin = {"", "", "", "", ""};
+    private final String[] reqMax = {"", "", "", "", ""};
+    private final String[] bonusMin = {"", "", "", "", ""};
+    private final String[] bonusMax = {"", "", "", "", ""};
     private String ids = "";
     private String majorIds = "";
-    /** 検索欄にあった WEI 以外の語（名前検索など）は残す */
-    private String otherTokens = "";
 
-    private EditBox nameBox;
-    private EditBox minBox;
-    private EditBox maxBox;
     private EditBox idBox;
     private EditBox majorBox;
     private @Nullable EditBox suggestTarget;
     private final List<Button> suggestButtons = new ArrayList<>();
     private List<String> knownIds = List.of();
     private List<String> knownMajorIds = List.of();
+
+    private final List<Label> labels = new ArrayList<>();
+
+    private record Label(Component text, int x, int y, int color) {}
 
     public WeiSearchScreen(@Nullable Screen parent) {
         super(Component.translatable("wei.search.title"));
@@ -71,153 +89,184 @@ public final class WeiSearchScreen extends Screen {
         collectKnownNames();
     }
 
+    private boolean showsSkills() {
+        return type.isEmpty() || type.equals("weapon") || type.equals("armour") || type.equals("accessory");
+    }
+
     @Override
     protected void init() {
-        int left = width / 2 - 160;
-        int y = 28;
-        int labelW = 70;
-        int x = left + labelW;
+        labels.clear();
+        int colW = 190;
+        int leftX = width / 2 - colW - 6;
+        int rightX = width / 2 + 6;
+        int fieldX = leftX + 58;
+        int fieldW = colW - 58;
+        int top = 26;
 
-        nameBox = new EditBox(font, x, y, 250, 18, Component.translatable("wei.search.name"));
-        nameBox.setValue(name);
-        nameBox.setResponder(v -> name = v);
-        addRenderableWidget(nameBox);
-        y += 24;
+        // ---- 左の列
+        int y = top;
+        label("wei.search.name", leftX, y);
+        box(fieldX, y, fieldW, name, v -> name = v, Component.translatable("wei.search.name.hint"));
+        y += ROW;
 
+        label("wei.search.type", leftX, y);
         addRenderableWidget(Button.builder(label(type, "wei.search.any"), b -> {
             type = next(TYPES, type);
-            subType = "";
-            attackSpeed = "";
-            profession = "";
+            subType = attackSpeed = profession = "";
             tiers.clear();
             rebuildWidgets();
-        }).bounds(x, y, 120, 20).build());
-        String[] subs = subTypes(type);
-        if (subs.length > 1) {
+        }).bounds(fieldX, y, fieldW / 2 - 1, 18).build());
+        if (subTypes(type).length > 1) {
             addRenderableWidget(Button.builder(label(subType, "wei.search.any"), b -> {
                 subType = next(subTypes(type), subType);
-                rebuildWidgets();
-            }).bounds(x + 126, y, 124, 20).build());
+                b.setMessage(label(subType, "wei.search.any"));
+            }).bounds(fieldX + fieldW / 2 + 1, y, fieldW / 2 - 1, 18).build());
         }
-        y += 24;
+        y += ROW;
 
-        // ティア（複数選べる）
-        String[] tierList = type.equals("ingredient") ? INGREDIENT_TIERS
-                : type.equals("material") || type.equals("tool") ? new String[0] : ITEM_TIERS;
-        int tx = x;
-        int ty = y;
-        for (String tier : tierList) {
-            boolean on = tiers.contains(tier);
-            int w = Math.max(30, font.width(tier) + 10) + (on ? 10 : 0);
-            if (tx + w > x + 250) {
-                tx = x;
-                ty += 22;
+        String[] tierList = tierList();
+        if (tierList.length > 0) {
+            label("wei.search.tier", leftX, y);
+            int tx = fieldX;
+            for (String tier : tierList) {
+                boolean on = tiers.contains(tier);
+                int w = font.width((on ? "✔ " : "") + tier) + 8;
+                if (tx + w > fieldX + fieldW) {
+                    tx = fieldX;
+                    y += 20;
+                }
+                addRenderableWidget(Button.builder(Component.literal((on ? "§a✔ " : "") + tier), b -> {
+                    if (!tiers.remove(tier)) tiers.add(tier);
+                    rebuildWidgets();
+                }).bounds(tx, y, w, 18).build());
+                tx += w + 2;
             }
-            addRenderableWidget(Button.builder(Component.literal((on ? "§a✔ " : "") + tier), b -> {
-                if (!tiers.remove(tier)) tiers.add(tier);
-                rebuildWidgets();
-            }).bounds(tx, ty, w, 20).build());
-            tx += w + 2;
+            y += ROW;
         }
-        y = (tierList.length == 0 ? y : ty + 24);
 
-        minBox = new EditBox(font, x, y, 50, 18, Component.translatable("wei.search.level"));
-        minBox.setValue(levelMin);
-        minBox.setFilter(s -> s.chars().allMatch(Character::isDigit));
-        minBox.setResponder(v -> levelMin = v);
-        addRenderableWidget(minBox);
-        maxBox = new EditBox(font, x + 70, y, 50, 18, Component.translatable("wei.search.level"));
-        maxBox.setValue(levelMax);
-        maxBox.setFilter(s -> s.chars().allMatch(Character::isDigit));
-        maxBox.setResponder(v -> levelMax = v);
-        addRenderableWidget(maxBox);
-        y += 24;
+        label("wei.search.level", leftX, y);
+        rangeBoxes(fieldX, y, () -> levelMin, v -> levelMin = v, () -> levelMax, v -> levelMax = v, false);
+        y += ROW;
 
-        if (type.equals("weapon") || type.isEmpty()) {
+        if (type.isEmpty() || type.equals("weapon")) {
+            label("wei.search.attackSpeed", leftX, y);
             addRenderableWidget(Button.builder(label(attackSpeed, "wei.search.any"), b -> {
                 attackSpeed = next(ATTACK_SPEEDS, attackSpeed);
-                rebuildWidgets();
-            }).bounds(x, y, 120, 20).build());
-            y += 24;
+                b.setMessage(label(attackSpeed, "wei.search.any"));
+            }).bounds(fieldX, y, fieldW, 18).build());
+            y += ROW;
         }
-        if (type.equals("ingredient") || type.equals("material") || type.equals("tool") || type.isEmpty()) {
+        if (type.isEmpty() || type.equals("ingredient") || type.equals("material") || type.equals("tool")) {
             String[] list = type.equals("ingredient") ? CRAFTING
                     : type.equals("material") || type.equals("tool") ? GATHERING : concat(CRAFTING, GATHERING);
+            label("wei.search.profession", leftX, y);
             addRenderableWidget(Button.builder(label(profession, "wei.search.any"), b -> {
                 profession = next(list, profession);
-                rebuildWidgets();
-            }).bounds(x, y, 120, 20).build());
-            y += 24;
+                b.setMessage(label(profession, "wei.search.any"));
+            }).bounds(fieldX, y, fieldW, 18).build());
         }
 
-        idBox = new EditBox(font, x, y, 250, 18, Component.translatable("wei.search.ids"));
-        idBox.setValue(ids);
-        idBox.setHint(Component.literal("rawStrength, walkSpeed"));
-        idBox.setResponder(v -> {
+        // ---- 右の列
+        int ry = top;
+        int skillLabelW = 46;
+        if (showsSkills()) {
+            labels.add(new Label(Component.translatable("wei.search.skillReq"), rightX, ry + 4, HEADER));
+            ry += 14;
+            for (int i = 0; i < SKILLS.length; i++) {
+                int index = i;
+                label("wei.search.skill." + SKILLS[i], rightX, ry);
+                rangeBoxes(rightX + skillLabelW, ry, () -> reqMin[index], v -> reqMin[index] = v,
+                        () -> reqMax[index], v -> reqMax[index] = v, false);
+                ry += 18;
+            }
+            ry += 4;
+            labels.add(new Label(Component.translatable("wei.search.skillBonus"), rightX, ry + 4, HEADER));
+            ry += 14;
+            for (int i = 0; i < SKILLS.length; i++) {
+                int index = i;
+                label("wei.search.skill." + SKILLS[i], rightX, ry);
+                rangeBoxes(rightX + skillLabelW, ry, () -> bonusMin[index], v -> bonusMin[index] = v,
+                        () -> bonusMax[index], v -> bonusMax[index] = v, true);
+                ry += 18;
+            }
+            ry += 6;
+        }
+        label("wei.search.ids", rightX, ry);
+        idBox = box(rightX + skillLabelW, ry, colW - skillLabelW, ids, v -> {
             ids = v;
             suggestTarget = idBox;
             updateSuggestions();
-        });
-        addRenderableWidget(idBox);
-        y += 22;
-        majorBox = new EditBox(font, x, y, 250, 18, Component.translatable("wei.search.majorIds"));
-        majorBox.setValue(majorIds);
-        majorBox.setResponder(v -> {
+        }, Component.literal("walkSpeed, lifeSteal"));
+        ry += ROW;
+        label("wei.search.majorIds", rightX, ry);
+        majorBox = box(rightX + skillLabelW, ry, colW - skillLabelW, majorIds, v -> {
             majorIds = v;
             suggestTarget = majorBox;
             updateSuggestions();
-        });
-        addRenderableWidget(majorBox);
-        y += 22;
-
+        }, null);
+        ry += ROW;
         // 入力中の ID の候補（押すと入る）
         suggestButtons.clear();
+        int sw = (colW - 6) / 4;
         for (int i = 0; i < 4; i++) {
             Button b = Button.builder(Component.empty(), btn -> applySuggestion(btn.getMessage().getString()))
-                    .bounds(x + i * 64, y, 62, 16).build();
+                    .bounds(rightX + i * (sw + 2), ry, sw, 16).build();
             b.visible = false;
             suggestButtons.add(addRenderableWidget(b));
         }
-        y += 22;
 
+        // ---- 下
+        int by = height - 26;
         addRenderableWidget(Button.builder(Component.translatable("wei.search.apply"), b -> apply())
-                .bounds(left + 40, y, 90, 20).build());
+                .bounds(width / 2 - 154, by, 100, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("wei.search.clear"), b -> {
             type = subType = attackSpeed = profession = name = levelMin = levelMax = ids = majorIds = "";
             tiers.clear();
+            for (int i = 0; i < 5; i++) reqMin[i] = reqMax[i] = bonusMin[i] = bonusMax[i] = "";
             rebuildWidgets();
-        }).bounds(left + 136, y, 90, 20).build());
+        }).bounds(width / 2 - 50, by, 100, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), b -> onClose())
-                .bounds(left + 232, y, 90, 20).build());
+                .bounds(width / 2 + 54, by, 100, 20).build());
+    }
+
+    private String[] tierList() {
+        if (type.equals("ingredient")) return INGREDIENT_TIERS;
+        if (type.equals("material") || type.equals("tool")) return new String[0];
+        return ITEM_TIERS;
+    }
+
+    private void label(String key, int x, int y) {
+        labels.add(new Label(Component.translatable(key), x, y + 5, LABEL));
+    }
+
+    private EditBox box(int x, int y, int w, String value, Consumer<String> onChange, @Nullable Component hint) {
+        EditBox b = new EditBox(font, x, y, w, 18, Component.empty());
+        b.setMaxLength(256);
+        b.setValue(value);
+        b.setResponder(onChange);
+        if (hint != null) b.setHint(hint);
+        addRenderableWidget(b);
+        return b;
+    }
+
+    /** 「下限 〜 上限」の 2 つの入力欄。allowNegative ならマイナスも入る（ID の値など） */
+    private void rangeBoxes(int x, int y, Supplier<String> min, Consumer<String> setMin,
+            Supplier<String> max, Consumer<String> setMax, boolean allowNegative) {
+        String pattern = allowNegative ? "-?[0-9]*" : "[0-9]*";
+        EditBox a = box(x, y, 44, min.get(), setMin, Component.translatable("wei.search.min"));
+        a.setFilter(s -> s.matches(pattern));
+        labels.add(new Label(Component.literal("〜"), x + 48, y + 5, LABEL));
+        EditBox b = box(x + 60, y, 44, max.get(), setMax, Component.translatable("wei.search.max"));
+        b.setFilter(s -> s.matches(pattern));
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
-        int left = width / 2 - 160;
-        g.drawCenteredString(font, title, width / 2, 10, 0xFFFFFFFF);
-        int y = 33;
-        g.drawString(font, Component.translatable("wei.search.name"), left, y, 0xFFE0E0E0);
-        y += 24;
-        g.drawString(font, Component.translatable("wei.search.type"), left, y + 1, 0xFFE0E0E0);
-        if (minBox != null) {
-            String[] tierList = type.equals("ingredient") ? INGREDIENT_TIERS
-                    : type.equals("material") || type.equals("tool") ? new String[0] : ITEM_TIERS;
-            if (tierList.length > 0) g.drawString(font, Component.translatable("wei.search.tier"), left, y + 25, 0xFFE0E0E0);
-            g.drawString(font, Component.translatable("wei.search.level"), left, minBox.getY() + 5, 0xFFE0E0E0);
-            g.drawString(font, "〜", minBox.getX() + 56, minBox.getY() + 5, 0xFFE0E0E0);
-            g.drawString(font, Component.translatable("wei.search.ids"), left, idBox.getY() + 5, 0xFFE0E0E0);
-            g.drawString(font, Component.translatable("wei.search.majorIds"), left, majorBox.getY() + 5, 0xFFE0E0E0);
-            int optY = minBox.getY() + 24;
-            if (type.equals("weapon") || type.isEmpty()) {
-                g.drawString(font, Component.translatable("wei.search.attackSpeed"), left, optY + 6, 0xFFE0E0E0);
-                optY += 24;
-            }
-            if (type.equals("ingredient") || type.equals("material") || type.equals("tool") || type.isEmpty()) {
-                g.drawString(font, Component.translatable("wei.search.profession"), left, optY + 6, 0xFFE0E0E0);
-            }
-        }
-        g.drawCenteredString(font, Component.literal(buildQuery()), width / 2, height - 14, 0xFFAAAAAA);
+        g.drawCenteredString(font, title, width / 2, 8, 0xFFFFFFFF);
+        for (Label l : labels) g.drawString(font, l.text(), l.x(), l.y(), l.color());
+        String query = buildQuery();
+        g.drawCenteredString(font, Component.literal(query.isEmpty() ? "-" : query), width / 2, height - 40, 0xFFAAAAAA);
     }
 
     @Override
@@ -234,21 +283,19 @@ public final class WeiSearchScreen extends Screen {
     /** 画面の選択を WEI の検索語にする */
     String buildQuery() {
         List<String> parts = new ArrayList<>();
-        if (!otherTokens.isBlank()) parts.add(otherTokens.trim());
         if (!name.isBlank()) parts.add(name.trim());
         if (!subType.isEmpty()) parts.add("type:" + subType);
         else if (!type.isEmpty()) parts.add("type:" + type);
         if (!tiers.isEmpty()) parts.add("tier:" + String.join(",", tiers));
         if (!attackSpeed.isEmpty()) parts.add("attackSpeed:" + attackSpeed);
         if (!profession.isEmpty()) parts.add("professions:" + profession);
-        if (!levelMin.isEmpty() && !levelMax.isEmpty()) {
-            // 下限と上限が逆なら入れ替える
-            int a = parseLevel(levelMin);
-            int b = parseLevel(levelMax);
-            parts.add("levelRange:" + Math.min(a, b) + "-" + Math.max(a, b));
+        addRange(parts, "levelRange", levelMin, levelMax);
+        if (showsSkills()) {
+            for (int i = 0; i < SKILLS.length; i++) {
+                addRange(parts, SKILLS[i] + "Req", reqMin[i], reqMax[i]);
+                addRange(parts, "id." + SKILL_BONUS_IDS[i], bonusMin[i], bonusMax[i]);
+            }
         }
-        else if (!levelMin.isEmpty()) parts.add("levelRange:>=" + levelMin);
-        else if (!levelMax.isEmpty()) parts.add("levelRange:<=" + levelMax);
         String idList = list(ids);
         if (!idList.isEmpty()) parts.add("identifications:" + idList);
         String majorList = list(majorIds);
@@ -256,7 +303,31 @@ public final class WeiSearchScreen extends Screen {
         return String.join(" ", parts);
     }
 
-    /** いまの検索欄を読み、分かる語は画面に、分からない語はそのまま残す */
+    /** min / max のどちらかだけでも書ける。逆なら入れ替える */
+    private static void addRange(List<String> parts, String key, String min, String max) {
+        boolean hasMin = isNumber(min);
+        boolean hasMax = isNumber(max);
+        if (hasMin && hasMax) {
+            int a = Integer.parseInt(min);
+            int b = Integer.parseInt(max);
+            parts.add(key + ":" + Math.min(a, b) + "-" + Math.max(a, b));
+        } else if (hasMin) {
+            parts.add(key + ":>=" + min);
+        } else if (hasMax) {
+            parts.add(key + ":<=" + max);
+        }
+    }
+
+    private static boolean isNumber(String s) {
+        try {
+            Integer.parseInt(s);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /** いまの検索欄を読み、分かる語は画面に、分からない語は名前の欄に残す */
     private void readCurrentSearch() {
         String current;
         try {
@@ -270,12 +341,19 @@ public final class WeiSearchScreen extends Screen {
             int colon = token.indexOf(':');
             String key = colon < 0 ? "" : token.substring(0, colon).toLowerCase(Locale.ROOT);
             String value = colon < 0 ? "" : token.substring(colon + 1);
+            if (readSkill(key, value)) continue;
             switch (key) {
                 case "type" -> {
-                    if (indexOf(TYPES, value) > 0) type = value;
-                    else for (String t : TYPES) if (indexOf(subTypes(t), value) > 0) {
-                        type = t;
-                        subType = subTypes(t)[indexOf(subTypes(t), value)];
+                    if (indexOf(TYPES, value) > 0) {
+                        type = TYPES[indexOf(TYPES, value)];
+                    } else {
+                        for (String t : TYPES) {
+                            int i = indexOf(subTypes(t), value);
+                            if (i > 0) {
+                                type = t;
+                                subType = subTypes(t)[i];
+                            }
+                        }
                     }
                 }
                 case "tier" -> {
@@ -284,12 +362,9 @@ public final class WeiSearchScreen extends Screen {
                 case "attackspeed" -> attackSpeed = value;
                 case "professions" -> profession = value;
                 case "levelrange" -> {
-                    if (value.startsWith(">=")) levelMin = value.substring(2);
-                    else if (value.startsWith("<=")) levelMax = value.substring(2);
-                    else if (value.contains("-")) {
-                        levelMin = value.substring(0, value.indexOf('-'));
-                        levelMax = value.substring(value.indexOf('-') + 1);
-                    } else levelMin = levelMax = value;
+                    String[] r = readRange(value);
+                    levelMin = r[0];
+                    levelMax = r[1];
                 }
                 case "identifications" -> ids = value.replace(",", ", ");
                 case "majorids" -> majorIds = value.replace(",", ", ");
@@ -299,6 +374,34 @@ public final class WeiSearchScreen extends Screen {
             }
         }
         name = String.join(" ", rest);
+    }
+
+    private boolean readSkill(String key, String value) {
+        for (int i = 0; i < SKILLS.length; i++) {
+            if (key.equals(SKILLS[i] + "req")) {
+                String[] r = readRange(value);
+                reqMin[i] = r[0];
+                reqMax[i] = r[1];
+                return true;
+            }
+            if (key.equals("id." + SKILL_BONUS_IDS[i].toLowerCase(Locale.ROOT))) {
+                String[] r = readRange(value);
+                bonusMin[i] = r[0];
+                bonusMax[i] = r[1];
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 100-105 / >=100 / <=105 / 105 を [下限, 上限] に */
+    private static String[] readRange(String value) {
+        if (value.startsWith(">=")) return new String[] {value.substring(2), ""};
+        if (value.startsWith("<=")) return new String[] {"", value.substring(2)};
+        int dash = value.indexOf('-', 1);
+        while (dash > 0 && value.charAt(dash - 1) == '-') dash = value.indexOf('-', dash + 1);
+        if (dash > 0) return new String[] {value.substring(0, dash), value.substring(dash + 1)};
+        return new String[] {value, value};
     }
 
     /** 候補の一覧は一覧（カタログ）が同じ間は使い回す */
@@ -332,8 +435,8 @@ public final class WeiSearchScreen extends Screen {
         List<String> hits = new ArrayList<>();
         if (!needle.isEmpty()) {
             for (String n : pool) {
-                if (n.startsWith(needle)) hits.add(n);
                 if (hits.size() >= suggestButtons.size()) break;
+                if (n.startsWith(needle)) hits.add(n);
             }
             for (String n : pool) {
                 if (hits.size() >= suggestButtons.size()) break;
@@ -354,14 +457,6 @@ public final class WeiSearchScreen extends Screen {
         String head = comma < 0 ? "" : text.substring(0, comma + 1) + " ";
         suggestTarget.setValue(head + value + ", ");
         setFocused(suggestTarget);
-    }
-
-    private static int parseLevel(String s) {
-        try {
-            return Integer.parseInt(s);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
     }
 
     private static String list(String raw) {

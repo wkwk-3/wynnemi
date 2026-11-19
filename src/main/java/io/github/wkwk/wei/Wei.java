@@ -170,20 +170,26 @@ public final class Wei implements ClientModInitializer {
                             return 1;
                         }))));
 
-        // Wynncraft のインベントリ・報酬チェストの左上に、条件設定の画面を開くボタンを置く
+        // EMI の検索欄の右に、Wynncraft 用の条件検索を開く虫眼鏡ボタンを置く
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-            if (!WynnCatalog.isOnWynncraftNow()) return;
-            // 自分のインベントリと報酬チェストだけ（Wynncraft 独自のメニュー画面には出さない）
-            boolean inventory = screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
-            boolean rewardChest = screen instanceof AbstractContainerScreen<?>
-                    && io.github.wkwk.wei.loot.LootHighlight.isRewardChest(
-                            com.wynntils.core.components.Models.Container.getCurrentContainer());
-            if (!inventory && !rewardChest) return;
-            Screens.getButtons(screen).add(Button.builder(Component.translatable("wei.search.button"),
-                            b -> client.setScreen(new WeiSearchScreen(screen)))
-                    .bounds(2, 2, 60, 16)
+            if (!(screen instanceof AbstractContainerScreen<?>) || !WynnCatalog.isOnWynncraftNow()) return;
+            Button button = Button.builder(Component.empty(), b -> client.setScreen(new WeiSearchScreen(screen)))
+                    .bounds(-100, -100, 18, 18)
                     .tooltip(Tooltip.create(Component.translatable("wei.search.title")))
-                    .build());
+                    .build();
+            Screens.getButtons(screen).add(button);
+            // EMI は検索欄の位置を描画のたびに決めるので、こちらも毎回合わせる
+            ScreenEvents.beforeRender(screen).register((s, g, mx, my, delta) -> {
+                var search = dev.emi.emi.screen.EmiScreenManager.search;
+                button.visible = search != null && search.visible && search.getWidth() > 0;
+                if (button.visible) {
+                    button.setX(search.getX() + search.getWidth() + 2);
+                    button.setY(search.getY());
+                }
+            });
+            ScreenEvents.afterRender(screen).register((s, g, mx, my, delta) -> {
+                if (button.visible) io.github.wkwk.wei.emi.SearchIcon.draw(g, button.getX() + 3, button.getY() + 3);
+            });
         });
     }
 }

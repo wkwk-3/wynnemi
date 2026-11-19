@@ -44,7 +44,7 @@
   "wei.tooltip.set_pieces": "%s 個装備:",
   "wei.recipe.level": "Lv. %s",
   "wei.recipe.requires_quest": "必要: %s",
-  "wei.search.title": "アイテム検索（条件を選ぶ）",
+  "wei.search.title": "Wynncraft 用の条件検索",
   "wei.search.button": "条件検索",
   "wei.search.any": "すべて",
   "wei.search.name": "名前",
@@ -132,5 +132,15 @@
   "wei.loot.rarity.tier3": "★3 / T3",
   "wei.loot.rarity.tier4": "T4",
   "wei.loot.rarity.tier5": "T5",
-  "wei.loot.rarity.tier6": "T6"
+  "wei.loot.rarity.tier6": "T6",
+  "wei.search.name.hint": "名前やほかの検索語",
+  "wei.search.skillReq": "必要スキル",
+  "wei.search.skillBonus": "スキルボーナス（ID）",
+  "wei.search.skill.str": "力",
+  "wei.search.skill.dex": "器用",
+  "wei.search.skill.int": "知力",
+  "wei.search.skill.def": "防御",
+  "wei.search.skill.agi": "敏捷",
+  "wei.search.min": "下限",
+  "wei.search.max": "上限"
 }

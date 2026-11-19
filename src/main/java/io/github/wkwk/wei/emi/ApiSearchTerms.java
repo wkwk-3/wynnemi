@@ -23,6 +23,10 @@ import org.jetbrains.annotations.Nullable;
  *   majorIds:hurricanesEye
  * </pre>
  *
+ * WEI だけの書き方（公式 API には無い）:
+ *   strReq:20-50 dexReq:>=40 intReq:<=10 defReq:0 agiReq:30   必要スキルの範囲（必要が無いものは 0）
+ *   id.rawStrength:5-15  id.walkSpeed:>=20                    ID が取りうる最大値の範囲
+ *
  * 値はカンマ区切りで「または」（API と同じく一覧を渡せる）。違うキー・同じキーの複数指定は「かつ」。
  * 大文字小文字と記号は区別しない。identifications を指定すると、サイトと同じく最初の ID の値が大きい順に並ぶ。
  */
@@ -35,15 +39,23 @@ final class ApiSearchTerms {
 
     private record Term(String key, List<String> values) {}
 
+    private static final Set<String> SKILL_KEYS = Set.of("strreq", "dexreq", "intreq", "defreq", "agireq");
+
     static boolean isApiKey(String key) {
-        return KEYS.contains(key.toLowerCase(Locale.ROOT));
+        String k = key.toLowerCase(Locale.ROOT);
+        return KEYS.contains(k) || SKILL_KEYS.contains(k) || (k.startsWith("id.") && k.length() > 3);
+    }
+
+    /** 範囲で指定するキー（値をそのまま残す） */
+    private static boolean isRangeKey(String k) {
+        return k.equals("levelrange") || SKILL_KEYS.contains(k) || k.startsWith("id.");
     }
 
     void add(String key, String rawValue) {
         String k = key.toLowerCase(Locale.ROOT);
         List<String> values = new ArrayList<>();
         for (String v : rawValue.split(",")) {
-            if (!v.isBlank()) values.add(k.equals("levelrange") ? v.trim() : Names.compact(v));
+            if (!v.isBlank()) values.add(isRangeKey(k) ? v.trim() : Names.compact(v));
         }
         if (values.isEmpty()) return;
         if (k.equals("identifications") && firstIdentification == null) firstIdentification = values.get(0);
@@ -74,6 +86,15 @@ final class ApiSearchTerms {
     }
 
     private static boolean matchesOne(String key, String value, WynnCatalog.ApiFacets f) {
+        if (SKILL_KEYS.contains(key)) {
+            // 必要スキル。必要が無いものは 0 として扱う（装備以外は対象外）
+            if (!"weapon".equals(f.type()) && !"armour".equals(f.type()) && !"accessory".equals(f.type())) return false;
+            return inRange(f.skillRequirements().getOrDefault(key.substring(0, 3), 0), value);
+        }
+        if (key.startsWith("id.")) {
+            Integer v = identificationValue(f.identifications(), Names.compact(key.substring(3)));
+            return v != null && inRange(v, value);
+        }
         return switch (key) {
             case "type" -> value.equals(compact(f.type())) || value.equals(compact(f.subType()))
                     // API の表記揺れ（armor / armour）
@@ -113,6 +134,8 @@ final class ApiSearchTerms {
             if (spec.startsWith(">")) return level > Integer.parseInt(spec.substring(1));
             if (spec.startsWith("<")) return level < Integer.parseInt(spec.substring(1));
             int dash = spec.indexOf('-', 1);
+            // 「-20--5」のように負の数同士の範囲
+            while (dash > 0 && spec.charAt(dash - 1) == '-') dash = spec.indexOf('-', dash + 1);
             if (dash > 0) {
                 int low = Integer.parseInt(spec.substring(0, dash));
                 int high = Integer.parseInt(spec.substring(dash + 1));

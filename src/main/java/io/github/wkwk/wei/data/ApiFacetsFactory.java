@@ -49,7 +49,28 @@ final class ApiFacetsFactory {
                 g.requirements().level(),
                 Set.of(),
                 Map.copyOf(ids),
-                Set.copyOf(majors));
+                Set.copyOf(majors),
+                skillRequirements(g));
+    }
+
+    /** 必要スキル。Wynntils の requirements().skills() は (Skill, 値) の一覧 */
+    private static Map<String, Integer> skillRequirements(GearInfo g) {
+        Map<String, Integer> out = new HashMap<>();
+        try {
+            for (var pair : g.requirements().skills()) {
+                String id = switch (pair.key().name()) {
+                    case "STRENGTH" -> "str";
+                    case "DEXTERITY" -> "dex";
+                    case "INTELLIGENCE" -> "int";
+                    case "DEFENCE" -> "def";
+                    case "AGILITY" -> "agi";
+                    default -> null;
+                };
+                if (id != null && pair.value() != 0) out.put(id, pair.value());
+            }
+        } catch (Throwable ignored) {
+        }
+        return Map.copyOf(out);
     }
 
     static WynnCatalog.ApiFacets ingredient(IngredientInfo i) {

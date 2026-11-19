@@ -44,7 +44,7 @@
   "wei.tooltip.set_pieces": "%s pieces:",
   "wei.recipe.level": "Lv. %s",
   "wei.recipe.requires_quest": "Requires: %s",
-  "wei.search.title": "Item Search (filters)",
+  "wei.search.title": "Wynncraft item search",
   "wei.search.button": "Filters",
   "wei.search.any": "Any",
   "wei.search.name": "Name",
@@ -132,5 +132,15 @@
   "wei.loot.rarity.tier3": "★3 / T3",
   "wei.loot.rarity.tier4": "T4",
   "wei.loot.rarity.tier5": "T5",
-  "wei.loot.rarity.tier6": "T6"
+  "wei.loot.rarity.tier6": "T6",
+  "wei.search.name.hint": "Name or other terms",
+  "wei.search.skillReq": "Skill requirements",
+  "wei.search.skillBonus": "Skill bonuses (IDs)",
+  "wei.search.skill.str": "Str",
+  "wei.search.skill.dex": "Dex",
+  "wei.search.skill.int": "Int",
+  "wei.search.skill.def": "Def",
+  "wei.search.skill.agi": "Agi",
+  "wei.search.min": "min",
+  "wei.search.max": "max"
 }
