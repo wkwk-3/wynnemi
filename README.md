@@ -2,11 +2,11 @@
 
 Wynn Enough Items
 
-JEI / REI / EMI のような、Wynncraft 用のアイテムビューアー MOD です。Wynntils が持っているアイテムデータを、同梱の EMI（フォーク）の画面で一覧・検索し、入手元や使い道まで調べられます。Fabric 用のクライアント MOD です。
+JEI / REI / EMI のような、Wynncraft 用のアイテムビューアー MOD です。Wynntils が持っているアイテムデータを、EMI（PF-EMI）の画面で一覧・検索し、入手元や使い道まで調べられます。Fabric 用のクライアント MOD です。
 
 - 対応: Minecraft 1.21.11 / Fabric
 - 必須: [Wynntils](https://modrinth.com/mod/wynntils)（v4.2.17 で確認）、Fabric API
-  - EMI は**このMODに同梱**しています（[PF-EMI](https://github.com/bostonstuddard/PF-EMI) をもとにしたフォーク。詳しくは [FORK.md](FORK.md)）。EMI や PF-EMI を別に入れる必要はなく、**一緒に入れないでください**
+  - [PF-EMI](https://modrinth.com/mod/pf-emi)（1.21.11 用の EMI）を**別に入れてください**。WEI は EMI を同梱しません。WEI に必要な EMI 側の変更（WEI 専用の検索語、読み込みの待ち合わせ、読めないお気に入りの保持、未鑑定ボックスのレシピ画面、Wynncraft での再読み込み）は Mixin で差し込んでいます。PF-EMI の更新で差し込めなくなった所は、その機能だけ止まります（ログの `[WEI emi-hook] active:` で確認できます）
   - 必要なものが足りなければ Fabric が起動を止めて不足を表示します
 
 ## できること
@@ -69,7 +69,7 @@ Wynncraft に接続している間は、EMI からバニラのアイテムとレ
 
 ### GitHub Actions（おすすめ）
 
-push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）を取ってきて、`emi/`（EMI のフォーク）→ MOD 本体の順にビルドし、jar を Artifacts に上げます。EMI のフォークは MOD 本体の jar に同梱されます。
+push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）を取ってきて、`emi/`（PF-EMI のソース、無改造。コンパイル専用）→ MOD 本体の順にビルドし、jar を Artifacts に上げます。EMI は同梱しません。
 
 ### 手元でビルド
 
