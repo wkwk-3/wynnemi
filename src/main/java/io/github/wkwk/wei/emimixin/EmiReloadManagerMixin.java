@@ -6,6 +6,7 @@ import io.github.wkwk.wei.emihook.EmiHooks;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -70,7 +71,9 @@ public abstract class EmiReloadManagerMixin {
             long generation = ++wei$generation;
             Diag.log(12, "Only the {} signal arrived; reloading EMI in {}ms unless the other one comes",
                     received, WEI_SYNC_FALLBACK_MS);
-            WEI_TIMER.schedule(() -> wei$fire(generation), WEI_SYNC_FALLBACK_MS, TimeUnit.MILLISECONDS);
+            // loadedResourcesMask は EMI がロック無しでクライアントスレッドから触るため、判定もそこで行う
+            WEI_TIMER.schedule(() -> Minecraft.getInstance().execute(() -> wei$fire(generation)),
+                    WEI_SYNC_FALLBACK_MS, TimeUnit.MILLISECONDS);
         }
     }
 

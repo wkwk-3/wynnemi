@@ -59,6 +59,8 @@ public final class WeiEmiPlugin implements EmiPlugin {
 
         // 手持ちのアイテムの R/U
         registry.addGenericStackProvider(new WynnSlotStackProvider());
+        WynnSlotStackProvider.registerHighlight();
+        WynnBoxInstances.registerOnce();
 
         // Wynncraft ではバニラを隠す（無効化は全プラグインの後に適用される）
         if (config.hideVanillaOnWynncraft && onWynncraft) {

@@ -52,8 +52,8 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
 
     /** 旧形式のキーを現行の形に変換する。不要なら null。 */
     public static @org.jetbrains.annotations.Nullable String legacyKey(String key) {
-        if (key.startsWith("aspect/") && key.matches(".* T\\d+$")) return key.substring(0, key.lastIndexOf(" T"));
         // 旧: aspect/名前 T2（1.0.1 でティアを 1 件に統合）
+        if (key.startsWith("aspect/") && key.matches(".* T\\d+$")) return key.substring(0, key.lastIndexOf(" T"));
         // 旧: 名前の無いアイテムのキーが表示名（rune/Az Rune → 現 rune/AZ）。表示名から現行キーを引く
         int slash = key.indexOf('/');
         if (slash > 0) {

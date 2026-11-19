@@ -52,7 +52,16 @@ public final class WeiConfigScreen extends Screen {
         ly = toggle(left, ly, colW, "professionRecipes", () -> config.showProfessionRecipes, v -> config.showProfessionRecipes = v);
         ly = toggle(left, ly, colW, "gearRecipes", () -> config.showGearRecipes, v -> config.showGearRecipes = v);
         ly = toggle(left, ly, colW, "syncFavorites", () -> config.syncFavoritesToWynntils, v -> config.syncFavoritesToWynntils = v);
-        ly = toggle(left, ly, colW, "diagnostics", io.github.wkwk.wei.Diag::enabled, v -> config.diagnosticsOverride = v);
+        // 自動（プレリリースのみ出す）→ オン → オフ → 自動
+        addRenderableWidget(Button.builder(diagnosticsLabel(), b -> {
+                    Boolean v = config.diagnosticsOverride;
+                    config.diagnosticsOverride = v == null ? Boolean.TRUE : v ? Boolean.FALSE : null;
+                    b.setMessage(diagnosticsLabel());
+                })
+                .bounds(left, ly, colW, 20)
+                .tooltip(Tooltip.create(Component.translatable("wei.config.diagnostics.tooltip")))
+                .build());
+        ly += 24;
 
         // 右: 高額アイテムの通知
         int ry = y;
@@ -105,6 +114,14 @@ public final class WeiConfigScreen extends Screen {
         return Component.translatable("wei.config." + id)
                 .append(": ")
                 .append(on ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+    }
+
+    private Component diagnosticsLabel() {
+        Boolean v = config.diagnosticsOverride;
+        Component state = v != null ? (v ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF)
+                : Component.translatable("wei.config.diagnostics.auto",
+                        io.github.wkwk.wei.Diag.prerelease() ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+        return Component.translatable("wei.config.diagnostics").append(": ").append(state);
     }
 
     private Component priceLabel() {

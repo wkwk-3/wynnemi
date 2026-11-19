@@ -34,6 +34,13 @@ final class WynnBoxInstances {
     static synchronized void registerOnce() {
         if (registered) return;
         registered = true;
+        // その場限りのスタックなので履歴・お気に入りに残さない（次回起動時には読めない）
+        EmiHooks.registerTransient(
+                stack -> stack instanceof WynnEmiStack wynn && wynn.key().startsWith(PREFIX),
+                json -> json.isJsonObject()
+                        && json.getAsJsonObject().has("key")
+                        && WynnEmiStackSerializer.TYPE.equals(typeOf(json.getAsJsonObject()))
+                        && json.getAsJsonObject().get("key").getAsString().startsWith(PREFIX));
         EmiHooks.registerRecipeOverride((EmiIngredient stack, boolean uses) -> {
             if (!(stack instanceof WynnEmiStack wynn) || !wynn.key().startsWith(PREFIX)) return null;
             List<EmiRecipe> recipes = RECIPES.get(wynn.key());
@@ -43,6 +50,10 @@ final class WynnBoxInstances {
             io.github.wkwk.wei.Diag.log(7, "Box: show {} recipe(s) for '{}' ({})", recipes.size(), wynn.key(), uses ? "U" : "R");
             return pages;
         });
+    }
+
+    private static @Nullable String typeOf(com.google.gson.JsonObject json) {
+        return json.has("type") && json.get("type").isJsonPrimitive() ? json.get("type").getAsString() : null;
     }
 
     static @Nullable WynnEmiStack create(ItemStack boxStack, GearBoxItem box, WynnLookup.BoxIndex index,

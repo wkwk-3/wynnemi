@@ -15,8 +15,10 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -52,8 +54,8 @@ public final class WynnFavoritesSync {
         // 動くと Wynntils 側を全部外す（diag#2）
         if (!dev.emi.emi.runtime.EmiReloadManager.isLoaded() || !WynnLookup.isReady()) return;
         // 前回から変化が無ければ何もしない
-        long fingerprint = fingerprint();
-        if (fingerprint == lastFingerprint) return;
+        List<Object> snapshot = snapshot();
+        if (sameRefs(snapshot, lastSnapshot)) return;
         try {
             if (added == null) added = load();
 
@@ -93,7 +95,7 @@ public final class WynnFavoritesSync {
             }
             if (changed) save(added);
             failures = 0;
-            lastFingerprint = fingerprint;
+            lastSnapshot = snapshot;
         } catch (Throwable t) {
             // 失敗が続けば内部が変わったとみなして止める
             if (++failures >= MAX_FAILURES) {
@@ -103,14 +105,21 @@ public final class WynnFavoritesSync {
         }
     }
 
-    private static long lastFingerprint = Long.MIN_VALUE;
+    /** 前回同期したときの一覧・未解決分・各お気に入りのスタック（同一性で比べる） */
+    private static List<Object> lastSnapshot = List.of();
 
-    private static long fingerprint() {
-        long h = System.identityHashCode(WynnCatalog.current());
-        h = h * 31 + System.identityHashCode(EmiHooks.unresolvedFavorites());
-        h = h * 31 + EmiFavorites.favorites.size();
-        for (EmiFavorite f : EmiFavorites.favorites) h = h * 31 + System.identityHashCode(f.getStack());
-        return h;
+    private static List<Object> snapshot() {
+        List<Object> refs = new ArrayList<>(EmiFavorites.favorites.size() + 2);
+        refs.add(WynnCatalog.current());
+        refs.add(EmiHooks.unresolvedFavorites());
+        for (EmiFavorite f : EmiFavorites.favorites) refs.add(f.getStack());
+        return refs;
+    }
+
+    private static boolean sameRefs(List<Object> a, List<Object> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) if (a.get(i) != b.get(i)) return false;
+        return true;
     }
 
     /** 保持中の未解決お気に入りの、Wynntils でのお気に入り名 */

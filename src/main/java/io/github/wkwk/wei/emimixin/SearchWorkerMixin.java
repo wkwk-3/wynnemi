@@ -44,6 +44,8 @@ public abstract class SearchWorkerMixin {
     @Redirect(method = "run", at = @At(value = "INVOKE",
             target = "Ldev/emi/emi/search/EmiSearch$CompiledQuery;isEmpty()Z"))
     private boolean wei$isEmpty(dev.emi.emi.search.EmiSearch.CompiledQuery compiled) {
+        // 直前で EmiSearch.compiledQuery に入ったクエリ。ハイライト表示はこれと組で WEI の条件を引く
+        EmiHooks.setActiveSearch(compiled, wei$extensions);
         return compiled.isEmpty() && wei$extensions.isEmpty();
     }
 

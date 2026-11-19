@@ -45,4 +45,4 @@
 
 - 調査用ログ（`[WEI diag#…]`）は、プレリリース（バージョンに「-」を含む）では既定で出し、リリースでは出さない。`config/wei.json` の `diagnosticsOverride`（true / false。旧版の `diagnostics` は無視）か JVM 引数 `-Dwei.diag=true|false` で上書きできる。
 - リリースで常に出るのは、起動・一覧の完成（1 行）・失敗や機能停止の警告だけ。
-- #13: `EMI hook active: <名前>`。PF-EMI に差し込めた Mixin（search / syncFallback / loadGate / favorites / history / recipeOverride）。
+- #13: `EMI hook active: <名前>`。PF-EMI に差し込めた Mixin（search / syncFallback / loadGate / favorites / history / recipeOverride / highlight）。highlight は検索欄のハイライト表示を初めて使ったときに出る。

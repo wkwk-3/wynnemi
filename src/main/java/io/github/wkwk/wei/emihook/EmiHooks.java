@@ -5,27 +5,35 @@ import com.google.gson.JsonObject;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.EmiStack;
 import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * PF-EMI に Mixin で差し込む機能の受け口。
  *
  * <ul>
- *   <li>検索の拡張</li>
+ *   <li>検索の拡張（一覧の絞り込みとハイライト表示）</li>
  *   <li>読み込みの待ち合わせ（一覧の完成までプラグイン登録を止める）</li>
  *   <li>読めなかったお気に入り・履歴の保持</li>
  *   <li>R/U のレシピ画面の差し替え</li>
+ *   <li>保存しない一時スタック</li>
  * </ul>
  *
  * 効いた Mixin は {@link #applied} に記録する（diag#13）。
@@ -78,6 +86,71 @@ public final class EmiHooks {
             }
         }
         return new PreparedSearch(remaining, List.copyOf(prepared));
+    }
+
+    /** 検索スレッドが使った EMI のクエリと WEI の条件（ハイライト表示で同じ条件を使うため） */
+    private record ActiveSearch(Object query, List<EmiSearchExtension.Prepared> extensions) {}
+
+    private static volatile @Nullable ActiveSearch activeSearch;
+    private static volatile Function<ItemStack, List<? extends EmiStack>> slotResolver = s -> List.of();
+    private static volatile Supplier<Object> slotResolverVersion = () -> null;
+    /** 以下 3 つは描画スレッドのみ。ItemStack は equals を持たないため同一性で引ける */
+    private static final Map<ItemStack, Boolean> HIGHLIGHT_CACHE = new WeakHashMap<>();
+    private static @Nullable ActiveSearch highlightCacheSearch;
+    private static @Nullable Object highlightCacheVersion;
+
+    public static void setActiveSearch(Object compiledQuery, List<EmiSearchExtension.Prepared> extensions) {
+        activeSearch = new ActiveSearch(compiledQuery, extensions);
+    }
+
+    /** スロットのアイテムを検索の対象（WEI のスタック）に変換する。version が変わると結果を捨てる */
+    public static void setSlotResolver(Function<ItemStack, List<? extends EmiStack>> resolver, Supplier<Object> version) {
+        slotResolver = resolver;
+        slotResolverVersion = version;
+    }
+
+    /**
+     * ハイライト表示用。WEI の条件が無ければ null。
+     * あれば EmiStack.of(アイテム) → 条件に合うか の表を返す（候補のどれかが合えば合格）。
+     */
+    public static @Nullable Map<EmiStack, Boolean> highlightResults(Object compiledQuery, List<ItemStack> items) {
+        ActiveSearch search = activeSearch;
+        if (search == null || search.query() != compiledQuery || search.extensions().isEmpty()) return null;
+        Object version = slotResolverVersion.get();
+        if (search != highlightCacheSearch || version != highlightCacheVersion) {
+            HIGHLIGHT_CACHE.clear();
+            highlightCacheSearch = search;
+            highlightCacheVersion = version;
+        }
+        Map<EmiStack, Boolean> out = new HashMap<>();
+        for (ItemStack item : items) {
+            if (item.isEmpty()) continue;
+            Boolean pass = HIGHLIGHT_CACHE.get(item);
+            if (pass == null) {
+                pass = matches(search, item);
+                HIGHLIGHT_CACHE.put(item, pass);
+            }
+            out.merge(EmiStack.of(item), pass, Boolean::logicalOr);
+        }
+        return out;
+    }
+
+    private static boolean matches(ActiveSearch search, ItemStack item) {
+        try {
+            for (EmiStack target : slotResolver.apply(item)) {
+                boolean all = true;
+                for (EmiSearchExtension.Prepared extension : search.extensions()) {
+                    if (!extension.test(target)) {
+                        all = false;
+                        break;
+                    }
+                }
+                if (all) return true;
+            }
+        } catch (Throwable t) {
+            Diag.swallowed("EmiHooks: highlight resolve", t);
+        }
+        return false;
     }
 
     // ---- 読み込みの待ち合わせ
@@ -147,6 +220,35 @@ public final class EmiHooks {
 
     public static void setUnresolvedLookupHistory(List<JsonElement> list) {
         unresolvedLookupHistory = Collections.unmodifiableList(new ArrayList<>(list));
+    }
+
+    // ---- 一時スタック
+
+    private static volatile Predicate<EmiIngredient> transientStack = s -> false;
+    private static volatile Predicate<JsonElement> transientJson = j -> false;
+
+    /** 履歴・お気に入りに残さないスタック（その場限りの未鑑定ボックスなど）。json は保存済みの形での判定 */
+    public static void registerTransient(Predicate<EmiIngredient> stack, Predicate<JsonElement> json) {
+        transientStack = stack;
+        transientJson = json;
+    }
+
+    public static boolean isTransient(EmiIngredient stack) {
+        try {
+            return transientStack.test(stack);
+        } catch (Throwable t) {
+            Diag.swallowed("EmiHooks: transient stack check", t);
+            return false;
+        }
+    }
+
+    public static boolean isTransient(JsonElement json) {
+        try {
+            return transientJson.test(json);
+        } catch (Throwable t) {
+            Diag.swallowed("EmiHooks: transient json check", t);
+            return false;
+        }
     }
 
     // ---- レシピ画面の差し替え

@@ -12,7 +12,9 @@ import com.wynntils.models.items.items.game.MaterialItem;
 import com.wynntils.models.items.items.game.TomeItem;
 import com.wynntils.models.items.properties.NamedItemProperty;
 import dev.emi.emi.api.EmiStackProvider;
+import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.EmiStackInteraction;
+import io.github.wkwk.wei.emihook.EmiHooks;
 import io.github.wkwk.wei.data.WynnCatalog;
 import io.github.wkwk.wei.mixin.AbstractContainerScreenAccessor;
 import io.github.wkwk.wei.util.Names;
@@ -36,6 +38,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
     private ItemStack lastStack;
     private WynnLookup lastLookup;
     private EmiStackInteraction lastResult = EmiStackInteraction.EMPTY;
+    private boolean retryLater;
 
     @Override
     public EmiStackInteraction getStackAt(Screen screen, int x, int y) {
@@ -46,17 +49,41 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
         if (stack.isEmpty()) return EmiStackInteraction.EMPTY;
         WynnLookup lookup = WynnLookup.current();
         if (stack == lastStack && lookup == lastLookup) return lastResult;
+        retryLater = false;
         EmiStackInteraction result = resolve(stack, lookup);
+        // Wynntils の解析待ちや例外の結果は覚えない（次のフレームで引き直す）
+        if (retryLater) {
+            lastStack = null;
+            return result;
+        }
         lastStack = stack;
         lastLookup = lookup;
         lastResult = result;
         return result;
     }
 
+    /** 検索欄のハイライト表示で、スロットのアイテムを WEI の条件で判定できるようにする */
+    static void registerHighlight() {
+        EmiHooks.setSlotResolver(WynnSlotStackProvider::searchTargets, WynnLookup::current);
+    }
+
+    /** 検索条件と照らす対象。未鑑定ボックスは候補すべて */
+    private static List<? extends EmiStack> searchTargets(ItemStack stack) {
+        Optional<WynnItem> wynnItem = Models.Item.getWynnItem(stack);
+        if (wynnItem.isEmpty()) return List.of();
+        WynnLookup lookup = WynnLookup.current();
+        if (wynnItem.get() instanceof GearBoxItem box) return possibleGears(lookup, box, stack);
+        WynnEmiStack found = findItem(lookup, wynnItem.get(), stack);
+        return found == null ? List.of() : List.of(found);
+    }
+
     private EmiStackInteraction resolve(ItemStack stack, WynnLookup lookup) {
         try {
             Optional<WynnItem> wynnItem = Models.Item.getWynnItem(stack);
-            if (wynnItem.isEmpty()) return EmiStackInteraction.EMPTY;
+            if (wynnItem.isEmpty()) {
+                retryLater = true;
+                return EmiStackInteraction.EMPTY;
+            }
 
             // 未鑑定ボックス
             if (wynnItem.get() instanceof GearBoxItem box) {
@@ -77,27 +104,31 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 return new EmiStackInteraction(index.stack(), focus, false);
             }
 
-            String key = keyOf(wynnItem.get());
-            WynnEmiStack found = key == null ? null : lookup.byKey.get(key);
-            if (key != null && found == null) {
-                Diag.once(7, "miss:" + key, "Inventory item key not in catalog: '{}' ({})", key,
-                        wynnItem.get().getClass().getSimpleName());
-            }
-            if (found == null) {
-                // キーの対応が無いもの（パウダー・ルーンなど）は名前で引く
-                String name = wynnItem.get() instanceof NamedItemProperty named ? named.getName() : null;
-                if (name == null) name = stack.getHoverName().getString();
-                String byName = lookup.keyByPlainName.get(Names.strip(name).toLowerCase(Locale.ROOT));
-                if (byName != null) found = lookup.byKey.get(byName);
-                Diag.once(7, "name:" + wynnItem.get().getClass().getName() + ":" + name,
-                        "Inventory item matched BY NAME: '{}' ({}) -> {}", name,
-                        wynnItem.get().getClass().getSimpleName(), byName == null ? "no match" : byName);
-                if (byName == null) logNameCandidates(lookup, name);
-            }
+            WynnEmiStack found = findItem(lookup, wynnItem.get(), stack);
             return found == null ? EmiStackInteraction.EMPTY : new EmiStackInteraction(found, null, false);
         } catch (Throwable t) {
+            Diag.swallowed("WynnSlotStackProvider: resolve", t);
+            retryLater = true;
             return EmiStackInteraction.EMPTY;
         }
+    }
+
+    /** 一覧のスタック。キーで引き、対応が無いもの（パウダー・ルーンなど）は名前で引く */
+    private static @Nullable WynnEmiStack findItem(WynnLookup lookup, WynnItem item, ItemStack stack) {
+        String key = keyOf(item);
+        WynnEmiStack found = key == null ? null : lookup.byKey.get(key);
+        if (found != null) return found;
+        if (key != null) {
+            Diag.once(7, "miss:" + key, "Inventory item key not in catalog: '{}' ({})", key, item.getClass().getSimpleName());
+        }
+        String name = item instanceof NamedItemProperty named ? named.getName() : null;
+        if (name == null) name = stack.getHoverName().getString();
+        String byName = lookup.keyByPlainName.get(Names.strip(name).toLowerCase(Locale.ROOT));
+        if (byName != null) found = lookup.byKey.get(byName);
+        Diag.once(7, "name:" + item.getClass().getName() + ":" + name, "Inventory item matched BY NAME: '{}' ({}) -> {}",
+                name, item.getClass().getSimpleName(), byName == null ? "no match" : byName);
+        if (byName == null) logNameCandidates(lookup, name);
+        return found;
     }
 
     /** カタログと同じ形式のキー */

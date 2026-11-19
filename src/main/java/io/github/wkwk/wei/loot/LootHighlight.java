@@ -100,12 +100,10 @@ public final class LootHighlight {
         }
 
         OptionalLong price = priceOf(stack, config.lootHighlightPrice);
-        if (price.isEmpty()) return;
         // 負の基準は通知しない
-        double thresholdLe = config.thresholdFor(categoryOf(stack).id, rarityOf(stack));
-        long threshold = Math.round(thresholdLe * 4096);
-        if (thresholdLe < 0 || price.getAsLong() < threshold) {
-            // 入れ替わりで安くなったら忘れる（次の高額品で鳴らすため）
+        double thresholdLe = price.isEmpty() ? -1 : config.thresholdFor(categoryOf(stack).id, rarityOf(stack));
+        if (thresholdLe < 0 || price.getAsLong() < Math.round(thresholdLe * 4096)) {
+            // 価格不明・安い品に入れ替わったら枠を外し、次の高額品で鳴らせるよう忘れる
             flagged.remove(slot.index);
             highSlots.remove(slot);
             return;

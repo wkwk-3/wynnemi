@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.serializer.EmiIngredientSerializer;
 import dev.emi.emi.runtime.EmiFavorites;
 import io.github.wkwk.wei.Diag;
@@ -45,6 +46,7 @@ public abstract class EmiFavoritesMixin {
     @Redirect(method = "load", at = @At(value = "INVOKE",
             target = "Ldev/emi/emi/api/stack/serializer/EmiIngredientSerializer;getDeserialized(Lcom/google/gson/JsonElement;)Ldev/emi/emi/api/stack/EmiIngredient;"))
     private static EmiIngredient wei$deserialize(JsonElement element) {
+        if (EmiHooks.isTransient(element)) return EmiStack.EMPTY;
         EmiIngredient ingredient = EmiIngredientSerializer.getDeserialized(element);
         if (ingredient.isEmpty()) {
             JsonObject owner = wei$owners.get(element);
