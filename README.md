@@ -81,4 +81,3 @@ push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）�
 ## 既知の問題
 
 - 手持ちのルーンで R/U が効くかは未確認
-- MOD 一覧のアイコンが未設定
