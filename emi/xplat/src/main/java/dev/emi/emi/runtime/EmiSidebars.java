@@ -1,7 +1,5 @@
 package dev.emi.emi.runtime;
 
-import dev.emi.emi.fork.EmiForkDiag;
-import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -65,9 +63,6 @@ public class EmiSidebars {
 		}
 	}
 
-	// [WEI fork] diag#1: lookup history entries that could not be deserialized on the last load; written back on save
-	private static final List<JsonElement> unresolvedLookupHistory = new ArrayList<>();
-
 	public static void save(JsonObject json) {
 		JsonArray arr = new JsonArray();
 		for (int i = 0; i < 1024; i++) {
@@ -79,12 +74,6 @@ public class EmiSidebars {
 			if (el != null && !el.isJsonNull()) {
 				arr.add(el);
 			}
-		}
-		for (JsonElement unresolved : unresolvedLookupHistory) {
-			if (arr.size() >= 1024) {
-				break;
-			}
-			arr.add(unresolved);
 		}
 		json.add("lookup_history", arr);
 
@@ -104,18 +93,12 @@ public class EmiSidebars {
 
 	public static void load(JsonObject json) {
 		lookupHistory.clear();
-		unresolvedLookupHistory.clear();
 		if (JsonHelper.hasArray(json, "lookup_history")) {
 			for (JsonElement el : JsonHelper.getArray(json, "lookup_history")) {
 				EmiIngredient stack = EmiIngredientSerializer.getDeserialized(el);
 				if (!stack.isEmpty()) {
 					lookupHistory.add(stack);
-				} else {
-					unresolvedLookupHistory.add(el.deepCopy());
 				}
-			}
-			if (!unresolvedLookupHistory.isEmpty()) {
-				EmiForkDiag.log(1, "Lookup history: kept " + unresolvedLookupHistory.size() + " unresolved entries for write-back");
 			}
 		}
 

@@ -105,7 +105,7 @@ public final class WynnFavoritesSync {
     /** EMI が読めずに保持しているお気に入りのうち WEI のものを、Wynntils のお気に入りの名前の候補にする */
     private static Set<String> unresolvedNames() {
         Set<String> names = new HashSet<>();
-        for (com.google.gson.JsonObject json : EmiFavorites.getUnresolvedFavorites()) {
+        for (com.google.gson.JsonObject json : io.github.wkwk.wei.emihook.EmiHooks.unresolvedFavorites()) {
             try {
                 com.google.gson.JsonObject stack = json.getAsJsonObject("stack");
                 if (stack == null || !stack.has("key")) continue;

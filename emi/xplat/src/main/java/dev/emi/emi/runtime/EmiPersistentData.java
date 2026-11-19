@@ -7,7 +7,6 @@ import java.io.FileWriter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import dev.emi.emi.fork.EmiForkDiag;
 import dev.emi.emi.bom.BoM;
 import net.minecraft.util.JsonHelper;
 
@@ -19,9 +18,6 @@ public class EmiPersistentData {
 		try {
 			JsonObject json = new JsonObject();
 			json.add("favorites", EmiFavorites.save());
-			// [WEI fork] diag#1: a save while EMI is not loaded can overwrite favorites that were dropped on load
-			EmiForkDiag.log(1, "Persistent data SAVE: favorites=" + EmiFavorites.favorites.size() + " (WEI " + EmiForkDiag.countWei(json.get("favorites").toString())
-				+ "), emiLoaded=" + EmiReloadManager.isLoaded() + ", status=" + EmiReloadManager.getStatus() + ", from " + EmiForkDiag.caller(3));
 			EmiSidebars.save(json);
 			json.add("recipe_defaults", BoM.saveAdded());
 			json.add("hidden_stacks", EmiHidden.save());
@@ -39,9 +35,6 @@ public class EmiPersistentData {
 		}
 		try {
 			JsonObject json = GSON.fromJson(new FileReader(FILE), JsonObject.class);
-			// [WEI fork] diag#1
-			EmiForkDiag.log(1, "Persistent data LOAD: file favorites=" + (JsonHelper.hasArray(json, "favorites") ? JsonHelper.getArray(json, "favorites").size() : 0)
-				+ " (WEI " + EmiForkDiag.countWei(String.valueOf(json.get("favorites"))) + "), hidden WEI=" + EmiForkDiag.countWei(String.valueOf(json.get("hidden_stacks"))));
 			if (JsonHelper.hasArray(json, "favorites")) {
 				EmiFavorites.load(JsonHelper.getArray(json, "favorites"));
 			}

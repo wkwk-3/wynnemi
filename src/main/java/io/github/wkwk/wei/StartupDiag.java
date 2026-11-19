@@ -27,8 +27,8 @@ final class StartupDiag {
                     c.getMetadata().getProvides(),
                     c.getOrigin(),
                     c.getContainingMod().map(m -> m.getMetadata().getId()).orElse("(top-level jar)"));
-            Diag.log(10, "wei_emi provided: {}, Wynntils version: {}",
-                    loader.isModLoaded("wei_emi"),
+            Diag.log(10, "EMI (PF-EMI) loaded: {}, Wynntils version: {}",
+                    loader.isModLoaded("emi"),
                     loader.getModContainer("wynntils").map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("missing"));
         } catch (Throwable t) {
             Diag.warn(10, "Could not inspect loaded mods: {}", t.toString());

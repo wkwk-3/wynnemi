@@ -34,7 +34,7 @@ jobs:
           ls dl-wynntils
           cp "$(ls dl-wynntils/*.jar | grep -vi sources | head -1)" libs/wynntils.jar
 
-      # emi/（EMI のフォーク）を先にビルドして、MOD 本体のコンパイルと同梱に使う
+      # emi/（PF-EMI のソース、無改造）をビルドして、MOD 本体のコンパイルだけに使う（同梱しない）
       - name: Build EMI fork
         working-directory: emi
         run: |
@@ -43,7 +43,7 @@ jobs:
           chmod +x gradlew
           ./gradlew :fabric:remapJar --stacktrace
           ls fabric/build/libs
-          cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/wei-emi-bundled.jar
+          cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/pf-emi-compile.jar
 
       - name: Build
         run: |

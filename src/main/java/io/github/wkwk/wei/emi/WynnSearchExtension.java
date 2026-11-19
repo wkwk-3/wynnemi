@@ -6,7 +6,7 @@ import com.wynntils.services.itemfilter.type.ItemProviderType;
 import com.wynntils.services.itemfilter.type.ItemSearchQuery;
 import com.wynntils.services.itemfilter.type.ItemStatProvider;
 import dev.emi.emi.api.stack.EmiStack;
-import dev.emi.emi.fork.EmiSearchExtension;
+import io.github.wkwk.wei.emihook.EmiSearchExtension;
 import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.data.WynnCatalog;
 import java.util.ArrayList;

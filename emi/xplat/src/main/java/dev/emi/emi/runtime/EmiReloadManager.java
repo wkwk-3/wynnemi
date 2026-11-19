@@ -1,13 +1,11 @@
 package dev.emi.emi.runtime;
 
-import dev.emi.emi.fork.EmiForkApi;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
 
 import com.google.common.collect.Lists;
 
-import dev.emi.emi.fork.EmiForkDiag;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiInitRegistry;
 import dev.emi.emi.api.EmiRegistry;
@@ -35,11 +33,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 
 public class EmiReloadManager {
-	private static volatile int loadedResourcesMask = 0;
-	// [WEI fork] diag#12: some servers (Wynncraft) only send one of the two sync signals, so EMI would wait forever.
-	// If the other signal does not arrive within this delay, reload anyway.
-	private static final long SYNC_FALLBACK_DELAY_MS = 3_000;
-	private static volatile long syncGeneration = 0;
+	private static int loadedResourcesMask = 0;
 	private static volatile boolean clear = false, restart = false;
 	// 0 - empty, 1 - reloading, 2 - loaded, -1 - error
 	private static volatile int status = 0;
@@ -56,12 +50,9 @@ public class EmiReloadManager {
 		if (loadedResourcesMask == 3) {
 			EmiLog.info("Recipes synchronized, reloading EMI");
 			loadedResourcesMask = 0;
-			syncGeneration++;
-			EmiForkDiag.log(12, "Both sync signals received (tags last) -> normal reload");
 			reload();
 		} else {
 			EmiLog.info("Recipes synchronized, waiting for tags to reload EMI...");
-			scheduleSyncFallback("tags");
 		}
 	}
 
@@ -70,45 +61,15 @@ public class EmiReloadManager {
 		if (loadedResourcesMask == 3) {
 			EmiLog.info("Tags synchronized, reloading EMI");
 			loadedResourcesMask = 0;
-			syncGeneration++;
-			EmiForkDiag.log(12, "Both sync signals received (recipes last) -> normal reload");
 			reload();
 		} else {
 			EmiLog.info("Tags synchronized, waiting for recipes to reload EMI...");
-			scheduleSyncFallback("recipes");
 		}
-	}
-
-	// [WEI fork] diag#12: reload after a delay if only one of the two sync signals arrives
-	private static void scheduleSyncFallback(String received) {
-		long generation = ++syncGeneration;
-		EmiForkDiag.log(12, "Only the " + received + " signal arrived; reloading in " + SYNC_FALLBACK_DELAY_MS + "ms unless the other one comes");
-		Thread timer = new Thread(() -> {
-			try {
-				Thread.sleep(SYNC_FALLBACK_DELAY_MS);
-			} catch (InterruptedException e) {
-				return;
-			}
-			synchronized (EmiReloadManager.class) {
-				if (generation != syncGeneration || loadedResourcesMask == 0 || loadedResourcesMask == 3) {
-					EmiForkDiag.log(12, "Sync fallback cancelled (generation " + generation + "/" + syncGeneration + ", mask=" + loadedResourcesMask + ")");
-					return;
-				}
-				EmiLog.info("Only one sync signal received (mask=" + loadedResourcesMask + "), reloading EMI anyway");
-				EmiForkDiag.log(12, "Sync fallback FIRED (mask=" + loadedResourcesMask + ") -> reload");
-				loadedResourcesMask = 0;
-				syncGeneration++;
-			}
-			reload();
-		}, "EMI sync fallback");
-		timer.setDaemon(true);
-		timer.start();
 	}
 
 	public static void clear() {
 		synchronized (EmiReloadManager.class) {
 			loadedResourcesMask = 0;
-			syncGeneration++; // [WEI fork] cancel a pending sync fallback
 			clear = true;
 			status = 0;
 			reloadWorry = Long.MAX_VALUE;
@@ -123,9 +84,6 @@ public class EmiReloadManager {
 	}
 	
 	public static void reload() {
-		// [WEI fork] diag#3: who requests EMI reloads, and how often
-		EmiForkDiag.log(3, "EMI reload requested (running=" + (thread != null && thread.isAlive()) + ", status=" + status
-			+ ", thread=" + Thread.currentThread().getName() + ") from " + EmiForkDiag.caller(5));
 		synchronized (EmiReloadManager.class) {
 			step(EmiPort.literal("Starting Reload"));
 			status = 1;
@@ -194,12 +152,6 @@ public class EmiReloadManager {
 					} else if (client.world.getRecipeManager() == null) {
 						EmiReloadLog.warn("Recipe Manager is null");
 						break;
-					}
-					// [WEI fork] diag#1: wait until mods that registered a load gate have their data,
-					// so favorites/history for their stacks are not dropped on this load
-					EmiForkApi.awaitLoadGates(name -> step(EmiPort.literal("Waiting for " + name)), () -> clear || restart);
-					if (clear || restart) {
-						continue;
 					}
 					List<EmiPluginContainer> plugins = Lists.newArrayList();
 					plugins.addAll(EmiAgnos.getPlugins().stream()
@@ -281,8 +233,6 @@ public class EmiReloadManager {
 					EmiScreenManager.forceRecalculate();
 					EmiReloadLog.bake();
 					EmiLog.info("Reloaded EMI in " + (System.currentTimeMillis() - reloadStart) + "ms");
-					// [WEI fork] diag#3
-					EmiForkDiag.log(3, "EMI reload finished in " + (System.currentTimeMillis() - reloadStart) + "ms (restart=" + restart + ")");
 					status = 2;
 				} catch (Throwable e) {
 					EmiReloadLog.warn("Critical error occured during reload:", e);

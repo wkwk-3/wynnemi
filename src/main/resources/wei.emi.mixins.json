@@ -1,0 +1,19 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "io.github.wkwk.wei.emimixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "EmiApiMixin",
+    "EmiFavoritesMixin",
+    "EmiReloadManagerAccessor",
+    "EmiReloadManagerMixin",
+    "EmiSearchMixin",
+    "EmiSidebarsMixin",
+    "ReloadWorkerMixin",
+    "SearchWorkerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

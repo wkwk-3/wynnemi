@@ -10,7 +10,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import dev.emi.emi.fork.EmiForkDiag;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.recipe.EmiPlayerInventory;
@@ -31,13 +30,6 @@ import net.minecraft.util.JsonHelper;
 
 public class EmiFavorites {
 	public static List<EmiFavorite> favorites = Lists.newArrayList();
-	// [WEI fork] diag#1: favorites whose stack could not be deserialized on the last load.
-	// They are written back unchanged on save instead of being lost.
-	private static final List<JsonObject> unresolvedFavorites = Lists.newArrayList();
-	// [WEI fork] read-only view of the kept unresolved favorites (WEI's favorites sync must not drop them)
-	public static List<JsonObject> getUnresolvedFavorites() {
-		return java.util.Collections.unmodifiableList(unresolvedFavorites);
-	}
 	public static List<EmiFavorite.Synthetic> syntheticFavorites = Lists.newArrayList();
 	public static List<EmiFavorite> favoriteSidebar = new CompoundList<>(favorites, syntheticFavorites);
 
@@ -54,17 +46,11 @@ public class EmiFavorites {
 				arr.add(obj);
 			}
 		}
-		for (JsonObject unresolved : unresolvedFavorites) {
-			arr.add(unresolved);
-		}
 		return arr;
 	}
 
 	public static void load(JsonArray arr) {
 		favorites.clear();
-		unresolvedFavorites.clear();
-		// [WEI fork] diag#1: favorites that could not be deserialized are kept (see unresolvedFavorites)
-		int diagSkipped = 0;
 		for (JsonElement el : arr) {
 			if (el.isJsonObject()) {
 				JsonObject json = el.getAsJsonObject();
@@ -75,9 +61,6 @@ public class EmiFavorites {
 				if (JsonHelper.hasElement(json, "stack")) {
 					EmiIngredient ingredient = EmiIngredientSerializer.getDeserialized(json.get("stack"));
 					if (ingredient.isEmpty()) {
-						diagSkipped++;
-						unresolvedFavorites.add(json.deepCopy());
-						EmiForkDiag.log(1, "Favorite UNRESOLVED on load (kept, will be written back on save): " + json.get("stack"));
 						continue;
 					}
 					if (ingredient instanceof EmiStack es) {
@@ -87,8 +70,6 @@ public class EmiFavorites {
 				}
 			}
 		}
-		EmiForkDiag.log(1, "Favorites loaded: " + favorites.size() + " of " + arr.size() + " (unresolved, kept " + diagSkipped
-			+ ", WEI entries in file " + EmiForkDiag.countWei(arr.toString()) + ")");
 	}
 
 	public static boolean canFavorite(EmiIngredient stack, EmiRecipe recipe) {

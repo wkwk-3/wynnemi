@@ -5,7 +5,7 @@ import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
-import dev.emi.emi.fork.EmiForkApi;
+import io.github.wkwk.wei.emihook.EmiHooks;
 import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.util.Names;
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ final class WynnBoxInstances {
     static synchronized void registerOnce() {
         if (registered) return;
         registered = true;
-        EmiForkApi.registerRecipeOverride((EmiIngredient stack, boolean uses) -> {
+        EmiHooks.registerRecipeOverride((EmiIngredient stack, boolean uses) -> {
             if (!(stack instanceof WynnEmiStack wynn) || !wynn.key().startsWith(PREFIX)) return null;
             List<EmiRecipe> recipes = RECIPES.get(wynn.key());
             if (recipes == null || recipes.isEmpty()) return null;

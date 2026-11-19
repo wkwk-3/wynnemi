@@ -26,10 +26,11 @@
     "java": ">=21",
     "fabric-api": "*",
     "wynntils": "*",
-    "wei_emi": "*"
+    "emi": "*"
   },
   "mixins": [
-    "wei.mixins.json"
+    "wei.mixins.json",
+    "wei.emi.mixins.json"
   ],
   "contact": {
     "sources": "https://github.com/wkwk-3/wynnemi",
