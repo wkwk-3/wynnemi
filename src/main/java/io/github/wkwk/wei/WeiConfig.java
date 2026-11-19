@@ -75,8 +75,11 @@ public final class WeiConfig {
     public String lootHighlightPrice = "lowest";
     /** 強調色（ARGB） */
     public int lootHighlightColor = 0xFF00FF66;
-    /** 調査用ログ。null ならプレリリースのみ */
-    public Boolean diagnostics = null;
+    /**
+     * 調査用ログの上書き。null ならプレリリースのみ。
+     * 旧版の {@code diagnostics} は既定値 true が保存されているため、別名にして無視する。
+     */
+    public Boolean diagnosticsOverride = null;
 
     public static WeiConfig get() {
         return instance;

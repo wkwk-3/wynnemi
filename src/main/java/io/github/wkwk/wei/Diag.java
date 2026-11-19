@@ -8,22 +8,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * 調査用ログ。行頭に {@code [WEI diag#番号]} を付ける（番号は docs/DIAGNOSTICS.md）。
  *
  * <p>既定: プレリリース（バージョンに「-」を含む）は出す、リリースは出さない。
- * config/wei.json の {@code diagnostics}（true / false）か、JVM 引数 {@code -Dwei.diag=true|false} で上書きできる。
+ * config/wei.json の {@code diagnosticsOverride}（true / false）か、JVM 引数 {@code -Dwei.diag=true|false} で上書きできる。
  * 引数の組み立てが重い呼び出しは {@link #enabled()} で囲む。
  */
 public final class Diag {
     private static final String SYSTEM = System.getProperty("wei.diag");
     private static final boolean PRERELEASE = FabricLoader.getInstance().getModContainer("wei")
-            .map(m -> m.getMetadata().getVersion().getFriendlyString().split("\\+")[0].contains("-"))
+            .map(m -> LogPolicy.isPrerelease(m.getMetadata().getVersion().getFriendlyString()))
             .orElse(false);
     private static final Set<String> ONCE = ConcurrentHashMap.newKeySet();
 
     private Diag() {}
 
     public static boolean enabled() {
-        if (SYSTEM != null) return Boolean.parseBoolean(SYSTEM);
-        Boolean configured = WeiConfig.get().diagnostics;
-        return configured != null ? configured : PRERELEASE;
+        return LogPolicy.enabled(SYSTEM, WeiConfig.get().diagnosticsOverride, PRERELEASE);
     }
 
     public static boolean prerelease() {

@@ -52,7 +52,7 @@ public final class WeiConfigScreen extends Screen {
         ly = toggle(left, ly, colW, "professionRecipes", () -> config.showProfessionRecipes, v -> config.showProfessionRecipes = v);
         ly = toggle(left, ly, colW, "gearRecipes", () -> config.showGearRecipes, v -> config.showGearRecipes = v);
         ly = toggle(left, ly, colW, "syncFavorites", () -> config.syncFavoritesToWynntils, v -> config.syncFavoritesToWynntils = v);
-        ly = toggle(left, ly, colW, "diagnostics", io.github.wkwk.wei.Diag::enabled, v -> config.diagnostics = v);
+        ly = toggle(left, ly, colW, "diagnostics", io.github.wkwk.wei.Diag::enabled, v -> config.diagnosticsOverride = v);
 
         // 右: 高額アイテムの通知
         int ry = y;
