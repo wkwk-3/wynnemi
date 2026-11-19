@@ -12,15 +12,16 @@ base {
 
 repositories {
     mavenCentral()
-    // libs/pf-emi-compile.jar（emi/ のビルド結果）を座標で参照するため。
-    // Loom の同梱（include）はファイルを直接は受け付けない
-    flatDir { dirs "libs" }
+    // PF-EMI（コンパイル専用）。Modrinth の配布物をそのまま使う
+    exclusiveContent {
+        forRepository { maven { url "https://api.modrinth.com/maven" } }
+        filter { includeGroup "maven.modrinth" }
+    }
     // Mod Menu（設定画面の入り口。入っていなくても WEI は動く）
     maven { url "https://maven.terraformersmc.com/releases" }
 }
 
 // Wynntils は Maven で配布されていないため libs/ に置いた jar を参照する。
-// EMI はこのリポジトリの emi/（PF-EMI のソースそのまま）をビルドした jar を libs/ に置く（コンパイル専用）。
 def libJar = { String prefix ->
     def found = fileTree("libs") { include "${prefix}*.jar" }.files
     if (found.isEmpty()) {
@@ -39,9 +40,8 @@ dependencies {
     // 実行時は mods フォルダの本体を使うので compileOnly。
     // runClient で試したい場合は modLocalRuntime に変える。
     modCompileOnly libJar("wynntils")
-    libJar("pf-emi-compile")
-    // EMI は本家の PF-EMI を前提にする（同梱しない）。コンパイル用に emi/（PF-EMI のソース、無改造）をビルドした jar を使う
-    modCompileOnly "local:pf-emi:compile"
+    // EMI は PF-EMI を前提にする（同梱しない）。ユーザーが入れるのと同じ Modrinth の版でコンパイルする
+    modCompileOnly "maven.modrinth:pf-emi:${pf_emi_version}"
     modCompileOnly "com.terraformersmc:modmenu:17.0.1"
 }
 

@@ -69,14 +69,13 @@ Wynncraft に接続している間は、EMI からバニラのアイテムとレ
 
 ### GitHub Actions（おすすめ）
 
-push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）を取ってきて、`emi/`（PF-EMI のソース、無改造。コンパイル専用）→ MOD 本体の順にビルドし、jar を Artifacts に上げます。EMI は同梱しません。
+push すると `.github/workflows/build.yml` が Wynntils（GitHub Releases）を取ってきて MOD 本体をビルドし（PF-EMI は Modrinth の Maven からコンパイル専用で取得）、jar を Artifacts に上げます。EMI は同梱しません。
 
 ### 手元でビルド
 
 1. `libs/wynntils*.jar` に Wynntils の Fabric 版（1.21.11）を置く
-2. `cd emi && ./gradlew :fabric:remapJar` で PF-EMI をビルドし、`emi/fabric/build/libs/` の jar（`-api` / `-sources` / `-dev` が付かないもの）を `libs/pf-emi-compile.jar` としてコピー（コンパイル専用）
-3. ルートで `./gradlew build`
-4. `build/libs/wei-<version>.jar` を mods フォルダへ。PF-EMI（1.1.23-pf.18 以降）と Wynntils（4.2.18 以降）は別途入れる
+2. ルートで `./gradlew build`（PF-EMI は Modrinth の Maven から自動で取得）
+3. `build/libs/wei-<version>.jar` を mods フォルダへ。PF-EMI（1.1.23-pf.18 以降）と Wynntils（4.2.18 以降）は別途入れる
 
 ## 既知の問題
 

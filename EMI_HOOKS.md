@@ -2,7 +2,7 @@
 
 2.1.0 から、WEI は EMI のフォークを同梱するのをやめ、本家の PF-EMI（mod ID `emi`）を前提にしました。
 
-`emi/` には PF-EMI のタグ `pf19+1.21.11` のソースを **改造せずに** 置いています。CI でビルドして、WEI のコンパイルにだけ使います（jar には入れません）。
+コンパイルには Modrinth で配布されている PF-EMI（`gradle.properties` の `pf_emi_version`）をそのまま使います（jar には入れません）。PF-EMI を更新したら、Mixin の当たり先（下の表）がまだあるかを確かめてください。
 
 以前フォークで書き換えていた所は、WEI の Mixin（`io.github.wkwk.wei.emimixin`、設定 `wei.emi.mixins.json`）で差し込みます。
 
