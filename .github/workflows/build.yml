@@ -77,3 +77,15 @@ jobs:
           if gh release view "v$version" >/dev/null 2>&1; then echo "v$version already released"; exit 0; fi
           jar=$(ls build/libs/*.jar | grep -v -e '-sources' | head -1)
           gh release create "v$version" "$jar" --target "$GITHUB_SHA" --title "WEI v$version" --notes-file docs/RELEASE_NOTES.md
+
+      # プレリリース: 「-」を含む v タグ（例: v2.1.0-test.8）を push すると、そのタグで Releases にプレリリースを出す
+      - name: Publish tagged pre-release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-')
+        run: |
+          jar=$(ls build/libs/*.jar | grep -v -e '-sources' | head -1)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$jar" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$jar" --prerelease --verify-tag \
+              --title "WEI ${GITHUB_REF_NAME#v}" --notes-file docs/PRERELEASE_NOTES.md
+          fi
