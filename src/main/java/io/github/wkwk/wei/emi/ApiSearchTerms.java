@@ -1,6 +1,6 @@
 package io.github.wkwk.wei.emi;
 
-import io.github.wkwk.wei.data.WynnCatalog;
+import io.github.wkwk.wei.data.ApiFacets;
 import io.github.wkwk.wei.util.Names;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,21 +71,21 @@ final class ApiSearchTerms {
         return firstIdentification;
     }
 
-    boolean matches(WynnCatalog.ApiFacets f) {
+    boolean matches(ApiFacets f) {
         for (Term term : terms) {
             if (!matchesAny(term, f)) return false;
         }
         return true;
     }
 
-    private static boolean matchesAny(Term term, WynnCatalog.ApiFacets f) {
+    private static boolean matchesAny(Term term, ApiFacets f) {
         for (String value : term.values()) {
             if (matchesOne(term.key(), value, f)) return true;
         }
         return false;
     }
 
-    private static boolean matchesOne(String key, String value, WynnCatalog.ApiFacets f) {
+    private static boolean matchesOne(String key, String value, ApiFacets f) {
         if (SKILL_KEYS.contains(key)) {
             // 不要は 0。装備以外は対象外
             if (!"weapon".equals(f.type()) && !"armour".equals(f.type()) && !"accessory".equals(f.type())) return false;

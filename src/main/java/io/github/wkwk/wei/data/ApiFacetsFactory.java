@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.data;
 
+import io.github.wkwk.wei.Diag;
 import com.wynntils.models.gear.type.GearAttackSpeed;
 import com.wynntils.models.gear.type.GearInfo;
 import com.wynntils.models.gear.type.GearMajorId;
@@ -23,13 +24,13 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Wynntils のデータを公式 API のアイテム検索と同じ分類・表記（{@link WynnCatalog.ApiFacets}）に変換する。
+ * Wynntils のデータを公式 API のアイテム検索と同じ分類・表記（{@link ApiFacets}）に変換する。
  * 値は API の {@code /v3/item/metadata} の filters に準拠。
  */
 final class ApiFacetsFactory {
     private ApiFacetsFactory() {}
 
-    static WynnCatalog.ApiFacets gear(GearInfo g) {
+    static ApiFacets gear(GearInfo g) {
         String typeName = g.type().name();
         String category = switch (typeName) {
             case "SPEAR", "WAND", "DAGGER", "BOW", "RELIK" -> "weapon";
@@ -41,7 +42,7 @@ final class ApiFacetsFactory {
         if (g.fixedStats().healthBuff() != 0) ids.put("basehealth", g.fixedStats().healthBuff());
         Set<String> majors = new HashSet<>();
         g.fixedStats().majorIds().map(GearMajorId::name).map(Names::compact).ifPresent(majors::add);
-        return new WynnCatalog.ApiFacets(
+        return new ApiFacets(
                 category,
                 typeName.toLowerCase(Locale.ROOT),
                 g.tier().getName().toLowerCase(Locale.ROOT),
@@ -68,26 +69,27 @@ final class ApiFacetsFactory {
                 };
                 if (id != null && pair.value() != 0) out.put(id, pair.value());
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Diag.swallowed("ApiFacetsFactory: skill requirements", t);
         }
         return Map.copyOf(out);
     }
 
-    static WynnCatalog.ApiFacets ingredient(IngredientInfo i) {
+    static ApiFacets ingredient(IngredientInfo i) {
         Map<String, Integer> ids = new HashMap<>();
         for (Pair<StatType, RangedValue> stat : i.variableStats()) {
             ids.merge(stat.key().getApiName().toLowerCase(Locale.ROOT), stat.value().high(), Math::max);
         }
-        return new WynnCatalog.ApiFacets("ingredient", null, "tier_" + i.tier(), null, i.level(),
+        return new ApiFacets("ingredient", null, "tier_" + i.tier(), null, i.level(),
                 professions(i.professions()), Map.copyOf(ids), Set.of());
     }
 
-    static WynnCatalog.ApiFacets material(MaterialInfo m) {
-        return new WynnCatalog.ApiFacets("material", null, null, null, m.level(),
+    static ApiFacets material(MaterialInfo m) {
+        return new ApiFacets("material", null, null, null, m.level(),
                 professions(List.of(m.professionType())), Map.of(), Set.of());
     }
 
-    static WynnCatalog.ApiFacets tool(GatheringToolInfo t) {
+    static ApiFacets tool(GatheringToolInfo t) {
         String sub = switch (t.gatheringToolType().name()) {
             case "AXE" -> "axe";
             case "PICKAXE" -> "pickaxe";
@@ -95,17 +97,17 @@ final class ApiFacetsFactory {
             case "SCYTHE" -> "scythe";
             default -> t.gatheringToolType().name().toLowerCase(Locale.ROOT);
         };
-        return new WynnCatalog.ApiFacets("tool", sub, null, null, t.level(),
+        return new ApiFacets("tool", sub, null, null, t.level(),
                 professions(List.of(t.gatheringToolType().getProfessionType())), Map.of(), Set.of());
     }
 
-    static WynnCatalog.ApiFacets charm(CharmInfo c) {
-        return new WynnCatalog.ApiFacets("charm", null, c.tier().getName().toLowerCase(Locale.ROOT), null,
+    static ApiFacets charm(CharmInfo c) {
+        return new ApiFacets("charm", null, c.tier().getName().toLowerCase(Locale.ROOT), null,
                 c.requirements().level(), Set.of(), Map.copyOf(possibleIds(c.variableStats())), Set.of());
     }
 
-    static WynnCatalog.ApiFacets tome(TomeInfo t) {
-        return new WynnCatalog.ApiFacets("tome", camel(t.type().name()), t.tier().getName().toLowerCase(Locale.ROOT),
+    static ApiFacets tome(TomeInfo t) {
+        return new ApiFacets("tome", camel(t.type().name()), t.tier().getName().toLowerCase(Locale.ROOT),
                 null, t.requirements().level(), Set.of(), Map.copyOf(possibleIds(t.variableStats())), Set.of());
     }
 

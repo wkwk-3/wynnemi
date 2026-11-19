@@ -125,7 +125,8 @@ public final class WynnFavoritesSync {
                 names.add(name);
                 // 「名前 T1」形式はティアを除く
                 names.add(name.replaceAll(" T\\d+$", ""));
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException t) {
+                Diag.swallowed("WynnFavoritesSync: unresolved favorite key", t);
             }
         }
         return names;
