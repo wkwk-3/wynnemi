@@ -48,11 +48,18 @@ jobs:
           cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/pf-emi-compile.jar
           unzip -p ../libs/pf-emi-compile.jar fabric.mod.json | grep -m1 '"version"'
 
-      # 一時的: emi/ のビルドをやめるため、Modrinth の PF-EMI の版を確かめる
-      - name: List PF-EMI versions
+      # 一時的: Modrinth の PF-EMI の中身（バージョンと Mixin の当たり先）を確かめる
+      - name: Inspect Modrinth PF-EMI
         run: |
-          curl -s 'https://api.modrinth.com/v2/project/pf-emi/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%221.21.11%22%5D' \
-            | jq -r '.[] | "\(.version_number)\t\(.date_published)\t\(.files[] | select(.primary) | .filename) \(.files[] | select(.primary) | .hashes.sha512[0:16])"' | head -10
+          url=$(curl -s 'https://api.modrinth.com/v2/project/pf-emi/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%221.21.11%22%5D' | jq -r '.[0].files[] | select(.primary) | .url')
+          curl -sL "$url" -o pf-emi-modrinth.jar
+          sha512sum pf-emi-modrinth.jar
+          unzip -p pf-emi-modrinth.jar fabric.mod.json | grep -m1 '"version"'
+          mkdir -p pfx && cd pfx && unzip -q ../pf-emi-modrinth.jar 'dev/emi/emi/*'
+          for c in search/EmiSearch\$SearchWorker search/EmiSearch\$CompiledQuery runtime/EmiReloadManager runtime/EmiReloadManager\$ReloadWorker runtime/EmiFavorites runtime/EmiSidebars runtime/EmiReloadLog runtime/EmiPersistentData api/EmiApi screen/EmiScreenManager platform/EmiAgnos; do
+            echo "== $c"; javap -p "dev/emi/emi/$c.class" | grep -E 'query|run\(|lookup|load|save|getPlugins|bake|displayRecipes|displayUses|setPages|renderSlotOverlays|compiledQuery|search;|loadedResourcesMask|reloadTags|reloadRecipes|clear|restart|isEmpty|test\(|FILE|getHandledScreen|highlight' || echo MISSING
+          done
+          javap -p dev/emi/emi/screen/widget/EmiSearchWidget.class | grep highlight || true
 
       - name: Build
         run: |

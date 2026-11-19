@@ -28,9 +28,6 @@
     "wynntils": ">=4.2.18",
     "emi": "*"
   },
-  "breaks": {
-    "emi": "<1.1.23-pf.18"
-  },
   "mixins": [
     "wei.mixins.json",
     "wei.emi.mixins.json"
