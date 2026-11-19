@@ -48,10 +48,6 @@ jobs:
           cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/pf-emi-compile.jar
           unzip -p ../libs/pf-emi-compile.jar fabric.mod.json | grep -m1 '"version"'
 
-      # 一時的: SNAPSHOT をやめるため、Loom の公開済みバージョンを確かめる
-      - name: List Loom versions
-        run: curl -s https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml | grep -o '<version>1\.14[^<]*' | tail -20
-
       - name: Build
         run: |
           chmod +x gradlew
