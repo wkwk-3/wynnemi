@@ -110,7 +110,7 @@ public final class WynnFavoritesSync {
     private static long lastFingerprint = Long.MIN_VALUE;
 
     private static long fingerprint() {
-        long h = System.identityHashCode(WynnLookup.current());
+        long h = System.identityHashCode(WynnCatalog.current());
         h = h * 31 + System.identityHashCode(EmiHooks.unresolvedFavorites());
         h = h * 31 + EmiFavorites.favorites.size();
         for (EmiFavorite f : EmiFavorites.favorites) h = h * 31 + System.identityHashCode(f.getStack());
