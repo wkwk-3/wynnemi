@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * お気に入り・履歴の保存形式。キーだけを保存し、読み込み時に登録中のスタックから引く。
  */
 public final class WynnEmiStackSerializer implements EmiIngredientSerializer<WynnEmiStack> {
-    public static final String TYPE = "wei";
+    public static final String TYPE = io.github.wkwk.wei.util.StackKeys.TYPE;
     private static final Map<String, WynnEmiStack> REGISTERED = new ConcurrentHashMap<>();
 
     static void clear() {
@@ -52,24 +52,8 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
 
     /** 旧形式のキーを現行の形に変換する。不要なら null。 */
     public static @org.jetbrains.annotations.Nullable String legacyKey(String key) {
-        // 旧: aspect/名前 T2（1.0.1 でティアを 1 件に統合）
-        if (key.startsWith("aspect/") && key.matches(".* T\\d+$")) return key.substring(0, key.lastIndexOf(" T"));
-        // 旧: 名前の無いアイテムのキーが表示名（rune/Az Rune → 現 rune/AZ）。表示名から現行キーを引く
-        int slash = key.indexOf('/');
-        if (slash > 0) {
-            String group = key.substring(0, slash);
-            if (UNNAMED_GROUPS.contains(group)) {
-                String name = key.substring(slash + 1).replaceAll("#\\d+$", "");
-                String now = WynnLookup.current().keyByPlainName.get(
-                        io.github.wkwk.wei.util.Names.strip(name).toLowerCase(java.util.Locale.ROOT));
-                if (now != null && now.startsWith(group + "/") && !now.equals(key)) return now;
-            }
-        }
-        return null;
+        return io.github.wkwk.wei.util.StackKeys.legacyKey(key, WynnLookup.current().keyByPlainName::get);
     }
-
-    private static final java.util.Set<String> UNNAMED_GROUPS =
-            java.util.Set.of("powder", "rune", "ward", "augment", "emerald", "dungeon_key");
 
     @Override
     public JsonElement serialize(WynnEmiStack stack) {

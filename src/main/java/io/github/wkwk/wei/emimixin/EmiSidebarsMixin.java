@@ -34,7 +34,7 @@ public abstract class EmiSidebarsMixin implements WeiHooked {
     @Redirect(method = "load", at = @At(value = "INVOKE",
             target = "Ldev/emi/emi/api/stack/serializer/EmiIngredientSerializer;getDeserialized(Lcom/google/gson/JsonElement;)Ldev/emi/emi/api/stack/EmiIngredient;"))
     private static EmiIngredient wei$deserialize(JsonElement element) {
-        // 以前の版で保存された一時スタックは読まずに捨てる
+        // 以前の版で保存された一時スタックは読まずに捨てる（2.1.0 より前のデータの掃除。3.0.0 で削除予定）
         if (EmiHooks.isTransient(element)) return EmiStack.EMPTY;
         EmiIngredient ingredient = EmiIngredientSerializer.getDeserialized(element);
         if (ingredient.isEmpty()) wei$unresolved.add(element.deepCopy());

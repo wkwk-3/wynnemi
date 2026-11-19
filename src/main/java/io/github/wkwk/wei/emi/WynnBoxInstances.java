@@ -23,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
  * EMI には登録せず、{@link EmiHooks#registerRecipeOverride} でページを差し込む。
  */
 final class WynnBoxInstances {
-    private static final String PREFIX = "boxinstance/";
+    private static final String PREFIX = io.github.wkwk.wei.util.StackKeys.BOX_INSTANCE_PREFIX;
     /** 一時スタックのキー → 表示するレシピ */
     private static final Map<String, List<EmiRecipe>> RECIPES = new ConcurrentHashMap<>();
     private static final Map<String, WynnEmiStack> STACKS = new ConcurrentHashMap<>();
@@ -37,10 +37,7 @@ final class WynnBoxInstances {
         // その場限りのスタックなので履歴・お気に入りに残さない（次回起動時には読めない）
         EmiHooks.registerTransient(
                 stack -> stack instanceof WynnEmiStack wynn && wynn.key().startsWith(PREFIX),
-                json -> json.isJsonObject()
-                        && json.getAsJsonObject().has("key")
-                        && WynnEmiStackSerializer.TYPE.equals(typeOf(json.getAsJsonObject()))
-                        && json.getAsJsonObject().get("key").getAsString().startsWith(PREFIX));
+                io.github.wkwk.wei.util.StackKeys::isBoxInstanceJson);
         EmiHooks.registerRecipeOverride((EmiIngredient stack, boolean uses) -> {
             if (!(stack instanceof WynnEmiStack wynn) || !wynn.key().startsWith(PREFIX)) return null;
             List<EmiRecipe> recipes = RECIPES.get(wynn.key());
@@ -50,10 +47,6 @@ final class WynnBoxInstances {
             io.github.wkwk.wei.Diag.log(7, "Box: show {} recipe(s) for '{}' ({})", recipes.size(), wynn.key(), uses ? "U" : "R");
             return pages;
         });
-    }
-
-    private static @Nullable String typeOf(com.google.gson.JsonObject json) {
-        return json.has("type") && json.get("type").isJsonPrimitive() ? json.get("type").getAsString() : null;
     }
 
     static @Nullable WynnEmiStack create(ItemStack boxStack, GearBoxItem box, WynnLookup.BoxIndex index,

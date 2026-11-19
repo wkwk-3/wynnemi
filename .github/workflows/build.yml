@@ -48,6 +48,12 @@ jobs:
           cp "$(ls fabric/build/libs/*.jar | grep -v -e '-api' -e '-sources' -e '-dev' | head -1)" ../libs/pf-emi-compile.jar
           unzip -p ../libs/pf-emi-compile.jar fabric.mod.json | grep -m1 '"version"'
 
+      # 一時的: emi/ のビルドをやめるため、Modrinth の PF-EMI の版を確かめる
+      - name: List PF-EMI versions
+        run: |
+          curl -s 'https://api.modrinth.com/v2/project/pf-emi/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%221.21.11%22%5D' \
+            | jq -r '.[] | "\(.version_number)\t\(.date_published)\t\(.files[] | select(.primary) | .filename) \(.files[] | select(.primary) | .hashes.sha512[0:16])"' | head -10
+
       - name: Build
         run: |
           chmod +x gradlew

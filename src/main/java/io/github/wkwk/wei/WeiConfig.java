@@ -71,13 +71,15 @@ public final class WeiConfig {
         }
         return best;
     }
+
     /** lowest / average / average80（上下 10% を除く）/ median / highest */
     public String lootHighlightPrice = "lowest";
     /** 強調色（ARGB） */
     public int lootHighlightColor = 0xFF00FF66;
     /**
      * 調査用ログの上書き。null ならプレリリースのみ。
-     * 旧版の {@code diagnostics} は既定値 true が保存されているため、別名にして無視する。
+     * 旧版の {@code diagnostics} は既定値 true が保存されているため、別名にして無視する
+     * （読み込み時に捨てられ、書き戻しで消える）。
      */
     public Boolean diagnosticsOverride = null;
 
@@ -99,15 +101,12 @@ public final class WeiConfig {
         WeiConfig loaded = null;
         if (Files.exists(path)) {
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                loaded = GSON.fromJson(reader, WeiConfig.class);
+                loaded = fromJson(reader);
             } catch (Exception e) {
                 Wei.LOGGER.warn("Failed to read {}, using defaults", path, e);
             }
         }
         if (loaded == null) loaded = new WeiConfig();
-        if (loaded.lootRules == null) loaded.lootRules = new java.util.ArrayList<>();
-        // 旧初期値（橙）を現初期値（緑）に移行
-        if (loaded.lootHighlightColor == 0xA0FFAA00) loaded.lootHighlightColor = 0xFF00FF66;
         instance = loaded;
 
         // 欠けた項目を補って書き戻す
@@ -116,6 +115,23 @@ public final class WeiConfig {
         } catch (Exception e) {
             Wei.LOGGER.warn("Failed to write {}", path, e);
         }
+    }
+
+    /** 読み込みと旧形式の移行。空なら既定値（ファイルの読み書きはしない） */
+    static WeiConfig fromJson(Reader reader) {
+        WeiConfig loaded = GSON.fromJson(reader, WeiConfig.class);
+        if (loaded == null) loaded = new WeiConfig();
+        if (loaded.lootRules == null) loaded.lootRules = new java.util.ArrayList<>();
+        // 手で書き換えた設定の欠けを補う（null のままだと判定で落ちる）
+        loaded.lootRules.removeIf(java.util.Objects::isNull);
+        for (LootRule r : loaded.lootRules) {
+            if (r.type == null) r.type = "any";
+            if (r.rarity == null) r.rarity = "any";
+        }
+        if (loaded.lootHighlightPrice == null) loaded.lootHighlightPrice = "lowest";
+        // 旧初期値（橙）を現初期値（緑）に移行。3.0.0 で削除予定
+        if (loaded.lootHighlightColor == 0xA0FFAA00) loaded.lootHighlightColor = 0xFF00FF66;
+        return loaded;
     }
 
     String signature() {

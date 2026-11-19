@@ -132,7 +132,7 @@ public final class WynnFavoritesSync {
                 String key = stack.get("key").getAsString();
                 String name = key.substring(key.indexOf('/') + 1).replaceAll("#\\d+$", "");
                 names.add(name);
-                // 「名前 T1」形式はティアを除く
+                // 「名前 T1」形式（1.0.1 より前のアスペクト）はティアを除く。3.0.0 で削除予定
                 names.add(name.replaceAll(" T\\d+$", ""));
             } catch (RuntimeException t) {
                 Diag.swallowed("WynnFavoritesSync: unresolved favorite key", t);
