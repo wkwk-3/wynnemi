@@ -68,10 +68,20 @@ public final class WeiSearchScreen extends Screen {
     private final String[] reqMax = {"", "", "", "", ""};
     private final String[] bonusMin = {"", "", "", "", ""};
     private final String[] bonusMax = {"", "", "", "", ""};
-    private String ids = "";
+    /** ID の条件（一覧から選んで追加）。下限・上限が空なら「その ID が付いている」 */
+    static final class IdFilter {
+        final String id;
+        String min = "";
+        String max = "";
+
+        IdFilter(String id) {
+            this.id = id;
+        }
+    }
+
+    private final List<IdFilter> idFilters = new ArrayList<>();
     private String majorIds = "";
 
-    private EditBox idBox;
     private EditBox majorBox;
     private @Nullable EditBox suggestTarget;
     private final List<Button> suggestButtons = new ArrayList<>();
@@ -166,20 +176,24 @@ public final class WeiSearchScreen extends Screen {
             }).bounds(fieldX, y, fieldW, 18).build());
         }
 
-        // ---- 右の列
-        int ry = top;
+        // 必要スキル（左の列の下）
         int skillLabelW = 46;
         if (showsSkills()) {
-            labels.add(new Label(Component.translatable("wei.search.skillReq"), rightX, ry + 4, HEADER));
-            ry += 14;
+            y += ROW + 2;
+            labels.add(new Label(Component.translatable("wei.search.skillReq"), leftX, y + 4, HEADER));
+            y += 14;
             for (int i = 0; i < SKILLS.length; i++) {
                 int index = i;
-                label("wei.search.skill." + SKILLS[i], rightX, ry);
-                rangeBoxes(rightX + skillLabelW, ry, () -> reqMin[index], v -> reqMin[index] = v,
+                label("wei.search.skill." + SKILLS[i], leftX, y);
+                rangeBoxes(fieldX, y, () -> reqMin[index], v -> reqMin[index] = v,
                         () -> reqMax[index], v -> reqMax[index] = v, false);
-                ry += 18;
+                y += 18;
             }
-            ry += 4;
+        }
+
+        // ---- 右の列: スキルボーナス / ID / メジャー ID
+        int ry = top;
+        if (showsSkills()) {
             labels.add(new Label(Component.translatable("wei.search.skillBonus"), rightX, ry + 4, HEADER));
             ry += 14;
             for (int i = 0; i < SKILLS.length; i++) {
@@ -191,13 +205,29 @@ public final class WeiSearchScreen extends Screen {
             }
             ry += 6;
         }
-        label("wei.search.ids", rightX, ry);
-        idBox = box(rightX + skillLabelW, ry, colW - skillLabelW, ids, v -> {
-            ids = v;
-            suggestTarget = idBox;
-            updateSuggestions();
-        }, Component.literal("walkSpeed, lifeSteal"));
-        ry += ROW;
+        // ID: 一覧から選んで追加。範囲が空なら「付いている」
+        labels.add(new Label(Component.translatable("wei.search.ids"), rightX, ry + 4, HEADER));
+        addRenderableWidget(Button.builder(Component.translatable("wei.search.addId"),
+                        b -> minecraft.setScreen(new IdPickerScreen(this, knownIds, this::addIdFilter)))
+                .bounds(rightX + colW - 70, ry, 70, 16).build());
+        ry += 18;
+        for (IdFilter filter : idFilters) {
+            String shown = font.plainSubstrByWidth(filter.id, colW - 132);
+            labels.add(new Label(Component.literal(shown.length() < filter.id.length() ? shown + "…" : shown),
+                    rightX, ry + 5, LABEL));
+            int bx = rightX + colW - 128;
+            rangeBoxes(bx, ry, () -> filter.min, v -> filter.min = v, () -> filter.max, v -> filter.max = v, true);
+            addRenderableWidget(Button.builder(Component.literal("×"), b -> {
+                idFilters.remove(filter);
+                rebuildWidgets();
+            }).bounds(rightX + colW - 18, ry, 18, 18).build());
+            ry += 18;
+        }
+        if (idFilters.isEmpty()) {
+            labels.add(new Label(Component.translatable("wei.search.ids.empty"), rightX, ry + 5, 0xFF808080));
+            ry += 18;
+        }
+        ry += 4;
         label("wei.search.majorIds", rightX, ry);
         majorBox = box(rightX + skillLabelW, ry, colW - skillLabelW, majorIds, v -> {
             majorIds = v;
@@ -205,7 +235,7 @@ public final class WeiSearchScreen extends Screen {
             updateSuggestions();
         }, null);
         ry += ROW;
-        // 入力中の ID の候補（押すと入る）
+        // 入力中のメジャー ID の候補（押すと入る）
         suggestButtons.clear();
         int sw = (colW - 6) / 4;
         for (int i = 0; i < 4; i++) {
@@ -220,7 +250,8 @@ public final class WeiSearchScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("wei.search.apply"), b -> apply())
                 .bounds(width / 2 - 154, by, 100, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("wei.search.clear"), b -> {
-            type = subType = attackSpeed = profession = name = levelMin = levelMax = ids = majorIds = "";
+            type = subType = attackSpeed = profession = name = levelMin = levelMax = majorIds = "";
+            idFilters.clear();
             tiers.clear();
             for (int i = 0; i < 5; i++) reqMin[i] = reqMax[i] = bonusMin[i] = bonusMax[i] = "";
             rebuildWidgets();
@@ -296,8 +327,12 @@ public final class WeiSearchScreen extends Screen {
                 addRange(parts, "id." + SKILL_BONUS_IDS[i], bonusMin[i], bonusMax[i]);
             }
         }
-        String idList = list(ids);
-        if (!idList.isEmpty()) parts.add("identifications:" + idList);
+        List<String> has = new ArrayList<>();
+        for (IdFilter f : idFilters) {
+            if (isNumber(f.min) || isNumber(f.max)) addRange(parts, "id." + f.id, f.min, f.max);
+            else has.add(f.id);
+        }
+        if (!has.isEmpty()) parts.add("identifications:" + String.join(",", has));
         String majorList = list(majorIds);
         if (!majorList.isEmpty()) parts.add("majorIds:" + majorList);
         return String.join(" ", parts);
@@ -366,7 +401,9 @@ public final class WeiSearchScreen extends Screen {
                     levelMin = r[0];
                     levelMax = r[1];
                 }
-                case "identifications" -> ids = value.replace(",", ", ");
+                case "identifications" -> {
+                    for (String v : value.split(",")) if (!v.isBlank()) addIdFilter(v.trim());
+                }
                 case "majorids" -> majorIds = value.replace(",", ", ");
                 default -> {
                     if (!token.isEmpty()) rest.add(token);
@@ -374,6 +411,12 @@ public final class WeiSearchScreen extends Screen {
             }
         }
         name = String.join(" ", rest);
+    }
+
+    /** 一覧で選んだ ID を条件に足す（同じものは足さない） */
+    private void addIdFilter(String id) {
+        for (IdFilter f : idFilters) if (f.id.equalsIgnoreCase(id)) return;
+        idFilters.add(new IdFilter(id));
     }
 
     private boolean readSkill(String key, String value) {
@@ -390,6 +433,15 @@ public final class WeiSearchScreen extends Screen {
                 bonusMax[i] = r[1];
                 return true;
             }
+        }
+        if (key.startsWith("id.") && key.length() > 3) {
+            String[] r = readRange(value);
+            addIdFilter(key.substring(3));
+            IdFilter f = idFilters.get(idFilters.size() - 1);
+            for (IdFilter x : idFilters) if (x.id.equalsIgnoreCase(key.substring(3))) f = x;
+            f.min = r[0];
+            f.max = r[1];
+            return true;
         }
         return false;
     }

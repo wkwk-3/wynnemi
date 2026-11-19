@@ -53,7 +53,7 @@
   "wei.search.level": "Level",
   "wei.search.attackSpeed": "Attack speed",
   "wei.search.profession": "Profession",
-  "wei.search.ids": "IDs",
+  "wei.search.ids": "ID filters",
   "wei.search.majorIds": "Major IDs",
   "wei.search.apply": "Search",
   "wei.search.clear": "Clear",
@@ -142,5 +142,12 @@
   "wei.search.skill.def": "Def",
   "wei.search.skill.agi": "Agi",
   "wei.search.min": "min",
-  "wei.search.max": "max"
+  "wei.search.max": "max",
+  "wei.search.addId": "+ Add ID",
+  "wei.search.ids.empty": "(empty range = item has this ID)",
+  "wei.idpicker.title": "Choose an ID",
+  "wei.idpicker.filter": "Filter",
+  "wei.idpicker.asc": "A → Z",
+  "wei.idpicker.desc": "Z → A",
+  "wei.idpicker.count": "%s IDs  page %s / %s"
 }

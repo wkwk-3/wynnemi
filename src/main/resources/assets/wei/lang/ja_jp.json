@@ -53,7 +53,7 @@
   "wei.search.level": "レベル",
   "wei.search.attackSpeed": "攻撃速度",
   "wei.search.profession": "職業",
-  "wei.search.ids": "ID",
+  "wei.search.ids": "ID の条件",
   "wei.search.majorIds": "メジャーID",
   "wei.search.apply": "検索",
   "wei.search.clear": "クリア",
@@ -142,5 +142,12 @@
   "wei.search.skill.def": "防御",
   "wei.search.skill.agi": "敏捷",
   "wei.search.min": "下限",
-  "wei.search.max": "上限"
+  "wei.search.max": "上限",
+  "wei.search.addId": "+ ID を追加",
+  "wei.search.ids.empty": "（範囲が空なら「付いている」だけで絞る）",
+  "wei.idpicker.title": "ID を選ぶ",
+  "wei.idpicker.filter": "絞り込み",
+  "wei.idpicker.asc": "A → Z",
+  "wei.idpicker.desc": "Z → A",
+  "wei.idpicker.count": "%s 件  %s / %s ページ"
 }
