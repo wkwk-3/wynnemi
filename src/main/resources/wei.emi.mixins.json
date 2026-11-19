@@ -8,7 +8,6 @@
     "EmiFavoritesMixin",
     "EmiReloadManagerAccessor",
     "EmiReloadManagerMixin",
-    "EmiSearchMixin",
     "EmiSidebarsMixin",
     "ReloadWorkerMixin",
     "SearchWorkerMixin"

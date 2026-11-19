@@ -140,7 +140,12 @@ public final class WynnCatalog {
     public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
 
     /** アスペクトのティア。threshold 個集めるとそのティアになる */
-    public record AspectTier(int tier, int threshold, List<Component> effect, ItemStack stack, List<Component> tooltip) {}
+    public record AspectTier(int tier, int threshold, List<Component> effect, com.wynntils.models.aspects.type.AspectInfo info) {
+        /** そのティアの見た目（レシピ画面を開いたときに作る。描画スレッドから呼ぶ） */
+        public ItemStack createStack() {
+            return new GuideAspectItemStack(info, tier);
+        }
+    }
 
     /** アスペクト1種類ぶん（一覧には1件だけ出し、ティアはレシピ画面で見せる） */
     public record AspectSnapshot(String key, List<AspectTier> tiers) {}
@@ -165,11 +170,20 @@ public final class WynnCatalog {
         return sets;
     }
 
-    /** 説明文が作れずバニラの名前で代用したアイテムのキー（ホバー時の調査ログ用） */
-    private static final java.util.Set<String> TOOLTIP_FALLBACK_KEYS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** 装備 1 件で、Wynntils が説明文を作れる状態か（作れなければ空か 1 行だけが返る）。データが無ければ true */
+    public static boolean tooltipsReady() {
+        try {
+            var first = Models.Gear.getAllGearInfos().findFirst();
+            if (first.isEmpty()) return true;
+            return Build.tooltipOf(new GuideGearItemStack(first.get())).size() > 1;
+        } catch (Throwable t) {
+            return true;
+        }
+    }
 
-    public static boolean isTooltipFallback(String key) {
-        return TOOLTIP_FALLBACK_KEYS.contains(key);
+    /** Wynntils のガイド用アイテムの説明文（描画スレッドから呼ぶ） */
+    public static List<Component> tooltipLines(ItemStack stack) {
+        return Build.tooltipOf(stack);
     }
 
     public static WynnCatalog current() {
@@ -254,7 +268,6 @@ public final class WynnCatalog {
         private final List<AspectSnapshot> aspects = new ArrayList<>();
 
         Build() {
-            TOOLTIP_FALLBACK_KEYS.clear();
             // 入手元は API の情報と有志のデータを合わせたもの（Wynntils のツールチップと同じ）を使う
             // 外すかどうかの判定も各アイテムの処理の中で行う（計画の段階で 5000 件を一度に見ると1ティックが重くなる）
             group("gear", () -> Models.Gear.getAllGearInfos()
@@ -335,10 +348,8 @@ public final class WynnCatalog {
                             var effect = a.effects().get(t);
                             List<Component> lines = new ArrayList<>();
                             for (var line : effect.value()) lines.add(line.getComponent());
-                            // そのティアの見た目と説明文（レシピ画面の各行で使う）
-                            ItemStack tierStack = new GuideAspectItemStack(a, t + 1);
-                            tiers.add(new AspectTier(t + 1, effect.key(), List.copyOf(lines), tierStack,
-                                    tooltipOf(tierStack).lines()));
+                            // ティアごとの見た目と説明文は、レシピ画面を開いたときに作る
+                            tiers.add(new AspectTier(t + 1, effect.key(), List.copyOf(lines), a));
                         }
                         aspects.add(new AspectSnapshot(key, List.copyOf(tiers)));
                     })
@@ -444,11 +455,10 @@ public final class WynnCatalog {
 
         WynnCatalog result() {
             io.github.wkwk.wei.Diag.log(3, "Hidden from the item list: {}", hiddenCounts);
-            Wei.LOGGER.info("[WEI tooltip] build summary: {} item(s) fell back to the vanilla name (player at build time: {})",
-                    tooltipFallbacks, Minecraft.getInstance().player != null);
-            Wei.LOGGER.info("[WEI item] name sources: {} / data name and tooltip name differ: {} item(s)",
-                    nameSourceCounts, nameMismatches);
-            retryEmptyTooltips();
+            if (emptyTooltips > 0) {
+                // 作成前に説明文が作れることを確かめているので、ふつうは 0 件
+                Wei.LOGGER.warn("{} item(s) have no tooltip text (e.g. {})", emptyTooltips, emptyTooltipSamples);
+            }
             return new WynnCatalog(List.copyOf(entries), List.copyOf(sets), List.copyOf(aspects));
         }
 
@@ -499,39 +509,18 @@ public final class WynnCatalog {
         }
 
         private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra, @Nullable String keyId) {
-            TooltipResult result = tooltipOf(stack);
-            List<Component> tooltip = result.lines();
+            List<Component> tooltip = tooltipOf(stack);
             // Wynntils の説明文は1行目が空行で、名前は飾り文字（私用領域の文字）と一緒に2行目以降にある。
-            // 表示名は「飾りを除いて文字が残る最初の行」から取る。取れなければ Wynntils のデータの名前、最後にバニラの名前
-            String nameLine = firstTextLine(tooltip);
-            boolean fallback = nameLine == null && plainName == null;
+            // 表示名は Wynntils のデータの名前。無ければ説明文の「飾りを除いて文字が残る最初の行」、最後にバニラの名前
+            String nameLine = plainName != null ? null : firstTextLine(tooltip);
             Component display = plainName != null ? Component.literal(plainName)
                     : nameLine != null ? Component.literal(nameLine)
                     : stack.getHoverName();
-            if (nameLine == null && plainName != null) {
-                Wei.LOGGER.warn("[WEI tooltip] no text line in tooltip; using data name group={} name='{}' lines={} first={}",
-                        group, plainName, tooltip.size(), firstLinesForLog(tooltip));
+            if (tooltip.size() <= 1) {
+                emptyTooltips++;
+                if (emptyTooltipSamples.size() < 10) emptyTooltipSamples.add(group + "/" + (plainName != null ? plainName : display.getString()));
             }
             if (tooltip.isEmpty()) tooltip = List.of(display);
-            if (fallback) {
-                tooltipFallbacks++;
-                // 原因調査用。設定に関係なく常に出す
-                String why = result.error() != null ? "exception " + result.error()
-                        : result.lines().isEmpty() ? "empty tooltip"
-                        : "no text line (" + result.lines().size() + " lines, first=" + firstLinesForLog(result.lines()) + ")";
-                Wei.LOGGER.warn("[WEI tooltip] FALLBACK #{} group={} name='{}' stackClass={} vanillaName='{}' player={} cause={} detail={}",
-                        tooltipFallbacks, group, plainName, stack.getClass().getName(), stack.getHoverName().getString(),
-                        Minecraft.getInstance().player != null, why, describeForLog(stack));
-                if (result.error() != null) {
-                    if (tooltipFallbacks <= 20) {
-                        Wei.LOGGER.warn("[WEI tooltip] stack trace for '{}':", plainName, result.error());
-                    } else {
-                        StackTraceElement[] st = result.error().getStackTrace();
-                        Wei.LOGGER.warn("[WEI tooltip] (trace omitted after 20) top frames: {} | {} | {}",
-                                st.length > 0 ? st[0] : "-", st.length > 1 ? st[1] : "-", st.length > 2 ? st[2] : "-");
-                    }
-                }
-            }
 
             String plain = plainName != null ? plainName : Names.strip(display.getString());
             if (plain.isBlank()) plain = Names.strip(stack.getHoverName().getString());
@@ -541,43 +530,6 @@ public final class WynnCatalog {
             int n = 2;
             while (!keys.add(key)) {
                 key = group + "/" + keyBase + "#" + n++;
-            }
-            if (fallback) {
-                TOOLTIP_FALLBACK_KEYS.add(key);
-                Wei.LOGGER.warn("[WEI tooltip] FALLBACK key='{}' display='{}'", key, display.getString());
-            }
-
-            // ---- 全アイテムの表示名の決まり方（常に出す）
-            String nameSource = plainName != null ? "data" : nameLine != null ? "tooltipLine" : "vanilla";
-            nameSourceCounts.merge(group + ":" + nameSource, 1, Integer::sum);
-            int nameLineIndex = -1;
-            for (int i = 0; i < tooltip.size(); i++) {
-                if (!Names.strip(tooltip.get(i).getString()).trim().isEmpty()) {
-                    nameLineIndex = i;
-                    break;
-                }
-            }
-            String tooltipName = nameLine == null ? "" : nameLine;
-            boolean mismatch = plainName != null && nameLine != null
-                    && !Names.normalize(plainName).equals(Names.normalize(nameLine));
-            if (mismatch) nameMismatches++;
-            if (entries.isEmpty() || tooltip.size() <= 1) {
-                Wei.LOGGER.info("[WEI item] context for #{}: player={} classType={} tooltipLines={}",
-                        entries.size() + 1, Minecraft.getInstance().player != null, safeClassType(), tooltip.size());
-            }
-            Wei.LOGGER.info("[WEI item] #{} key='{}' group={} nameSource={} display='{}' dataName='{}' tooltipName='{}'{} "
-                            + "nameLineIndex={} lines={} vanillaName='{}' class={} line0={} line1={}",
-                    entries.size() + 1, key, group, nameSource, display.getString(), plainName, tooltipName,
-                    mismatch ? " NAME-MISMATCH" : "", nameLineIndex, tooltip.size(), stack.getHoverName().getString(),
-                    stack.getClass().getSimpleName(),
-                    tooltip.isEmpty() ? "-" : escape(tooltip.get(0).getString()),
-                    tooltip.size() < 2 ? "-" : escape(tooltip.get(1).getString()));
-            // 先頭の数件と、名前の行が見つからない・名前が食い違うものは、行の中身の構造（フォントなど）まで出す
-            if (structureLogs < 30 || nameLine == null || mismatch) {
-                structureLogs++;
-                for (int i = 0; i < Math.min(3, tooltip.size()); i++) {
-                    Wei.LOGGER.info("[WEI item]    line{} structure: {}", i, tooltip.get(i));
-                }
             }
 
             String favoriteName = extra.favoriteName() != null ? extra.favoriteName() : plain;
@@ -670,62 +622,8 @@ public final class WynnCatalog {
             });
         }
 
-        private int tooltipFallbacks;
-
-        /**
-         * 一覧作成の最初のほうで、Wynntils が空の説明文を返すことがある（ログで最初の16件）。
-         * Wynntils のガイド用アイテムは一度作った説明文を覚えてしまうので、新しく作り直してもう一度取る。
-         */
-        private void retryEmptyTooltips() {
-            int retried = 0;
-            int fixed = 0;
-            for (int i = 0; i < entries.size(); i++) {
-                Entry e = entries.get(i);
-                if (e.tooltip().size() > 1) continue;
-                if (!(e.stack() instanceof com.wynntils.screens.guides.gear.GuideGearItemStack gear)) {
-                    Wei.LOGGER.warn("[WEI tooltip] RETRY skipped key='{}' class={} lines={} (only gear can be rebuilt)",
-                            e.key(), e.stack().getClass().getSimpleName(), e.tooltip().size());
-                    continue;
-                }
-                retried++;
-                var fresh = new com.wynntils.screens.guides.gear.GuideGearItemStack(gear.getGearInfo());
-                TooltipResult result = tooltipOf(fresh);
-                boolean ok = result.lines().size() > 1;
-                if (ok) {
-                    fixed++;
-                    entries.set(i, e.withTooltip(fresh, result.lines()));
-                }
-                Wei.LOGGER.info("[WEI tooltip] RETRY key='{}' -> {} line(s){}{}", e.key(), result.lines().size(),
-                        ok ? " FIXED" : " still empty", result.error() != null ? " error=" + result.error() : "");
-            }
-            Wei.LOGGER.info("[WEI tooltip] RETRY summary: {} retried, {} fixed (player={}, class={})", retried, fixed,
-                    Minecraft.getInstance().player != null, safeClassType());
-        }
-
-        private static String safeClassType() {
-            try {
-                return String.valueOf(Models.Character.getClassType());
-            } catch (Throwable t) {
-                return "error " + t;
-            }
-        }
-        private int nameMismatches;
-        private int structureLogs;
-        private final Map<String, Integer> nameSourceCounts = new java.util.TreeMap<>();
-
-        /** 私用領域の文字や制御文字を \\uXXXX にして、ログで見えるようにする */
-        private static String escape(String s) {
-            StringBuilder sb = new StringBuilder("'");
-            s.codePoints().forEach(cp -> {
-                if (Character.getType(cp) == Character.PRIVATE_USE || Character.isISOControl(cp)
-                        || Character.getType(cp) == Character.SURROGATE) {
-                    sb.append(String.format("\\u{%X}", cp));
-                } else {
-                    sb.appendCodePoint(cp);
-                }
-            });
-            return sb.append("'").toString();
-        }
+        private int emptyTooltips;
+        private final List<String> emptyTooltipSamples = new ArrayList<>();
 
         /** 飾り文字を除いて文字が残る最初の行（名前の行）。無ければ null */
         private static @Nullable String firstTextLine(List<Component> lines) {
@@ -736,23 +634,13 @@ public final class WynnCatalog {
             return null;
         }
 
-        private static String firstLinesForLog(List<Component> lines) {
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < Math.min(3, lines.size()); i++) {
-                if (i > 0) sb.append(" | ");
-                sb.append('\'').append(lines.get(i).getString().replaceAll("\\p{Co}", "?")).append('\'');
-            }
-            return sb.append(']').toString();
-        }
-
-        record TooltipResult(List<Component> lines, @Nullable Throwable error) {}
-
-        private static TooltipResult tooltipOf(ItemStack stack) {
+        static List<Component> tooltipOf(ItemStack stack) {
             try {
-                return new TooltipResult(List.copyOf(stack.getTooltipLines(
-                        Item.TooltipContext.EMPTY, Minecraft.getInstance().player, TooltipFlag.NORMAL)), null);
+                return List.copyOf(stack.getTooltipLines(
+                        Item.TooltipContext.EMPTY, Minecraft.getInstance().player, TooltipFlag.NORMAL));
             } catch (Throwable t) {
-                return new TooltipResult(List.of(), t);
+                Diag.warn(3, "Tooltip failed for {}: {}", stack.getHoverName().getString(), t.toString());
+                return List.of();
             }
         }
 
@@ -812,27 +700,5 @@ public final class WynnCatalog {
             }
         }
         return sb.toString();
-    }
-
-    /** 調査ログ用: Wynntils のガイド用アイテムなら、元になったデータの要点を書き出す */
-    static String describeForLog(ItemStack stack) {
-        try {
-            if (stack instanceof com.wynntils.screens.guides.gear.GuideGearItemStack gear) {
-                var g = gear.getGearInfo();
-                StringBuilder sb = new StringBuilder();
-                sb.append("gear{type=").append(g.type()).append(", tier=").append(g.tier())
-                        .append(", level=").append(g.requirements().level())
-                        .append(", preIdentified=").append(g.metaInfo().preIdentified())
-                        .append(", material=").append(g.metaInfo().material())
-                        .append(", powderSlots=").append(g.powderSlots())
-                        .append(", majorIds=").append(g.fixedStats().majorIds().isPresent())
-                        .append(", stats=[");
-                for (var stat : g.variableStats()) sb.append(stat.key().getApiName()).append(' ');
-                return sb.append("]}").toString();
-            }
-            return stack.getItem().toString() + " components=" + stack.getComponents();
-        } catch (Throwable t) {
-            return "(describe failed: " + t + ")";
-        }
     }
 }

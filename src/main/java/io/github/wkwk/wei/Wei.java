@@ -181,9 +181,13 @@ public final class Wei implements ClientModInitializer {
             // EMI は検索欄の位置を描画のたびに決めるので、こちらも毎回合わせる
             ScreenEvents.beforeRender(screen).register((s, g, mx, my, delta) -> {
                 var search = dev.emi.emi.screen.EmiScreenManager.search;
-                button.visible = search != null && search.visible && search.getWidth() > 0;
+                // EMI の検索欄が実際に出ているときだけ（EMI を無効にしている・検索欄を消している画面には出さない）
+                button.visible = search != null && search.isVisible() && search.getWidth() > 0
+                        && !dev.emi.emi.screen.EmiScreenManager.isDisabled();
                 if (button.visible) {
-                    button.setX(search.getX() + search.getWidth() + 2);
+                    // 右に置く。右端の帯に検索欄があって右に入らないときは左に置く
+                    int right = search.getX() + search.getWidth() + 2;
+                    button.setX(right + button.getWidth() <= s.width ? right : search.getX() - button.getWidth() - 2);
                     button.setY(search.getY());
                 }
             });

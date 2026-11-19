@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;
+import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,15 +52,12 @@ public final class EmiHooks {
         @Nullable Map<EmiRecipeCategory, List<EmiRecipe>> pages(EmiIngredient stack, boolean uses);
     }
 
-    /** EmiSearch.search で作った準備結果を、同じ呼び出しの中で作られる検索スレッドへ渡す（Mixin 用） */
-    public static volatile PreparedSearch pendingSearch;
-
     public record PreparedSearch(String remainingQuery, List<EmiSearchExtension.Prepared> extensions) {}
 
     private EmiHooks() {}
 
     public static void mark(String hook) {
-        if (applied.add(hook)) Wei.LOGGER.info("[WEI emi-hook] active: {}", hook);
+        if (applied.add(hook)) Diag.log(13, "EMI hook active: {}", hook);
     }
 
     // ---- 検索
@@ -112,20 +110,20 @@ public final class EmiHooks {
             }
             long waited = System.currentTimeMillis() - start;
             if (notReady == null) {
-                if (waitingFor != null) Wei.LOGGER.info("[WEI diag#1] Load gates ready after {}ms", waited);
+                if (waitingFor != null) Diag.log(1, "Load gates ready after {}ms", waited);
                 return;
             }
             if (abort.getAsBoolean()) {
-                Wei.LOGGER.info("[WEI diag#1] Waiting for load gate '{}' aborted after {}ms", notReady, waited);
+                Diag.log(1, "Waiting for load gate '{}' aborted after {}ms", notReady, waited);
                 return;
             }
             if (waited >= LOAD_GATE_TIMEOUT_MS) {
-                Wei.LOGGER.warn("[WEI diag#1] Load gate '{}' TIMED OUT after {}ms; loading anyway", notReady, waited);
+                Wei.LOGGER.warn("EMI loaded before '{}' was ready ({}ms); some favorites may not show until the next reload", notReady, waited);
                 return;
             }
             if (!notReady.equals(waitingFor)) {
                 waitingFor = notReady;
-                Wei.LOGGER.info("[WEI diag#1] EMI waits for load gate '{}' before registering plugins", notReady);
+                Diag.log(1, "EMI waits for '{}' before registering plugins", notReady);
                 step.accept(notReady);
             }
             try {

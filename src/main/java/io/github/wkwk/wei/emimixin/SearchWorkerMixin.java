@@ -7,7 +7,10 @@ import io.github.wkwk.wei.emihook.EmiSearchExtension;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,17 +18,28 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** EMI の検索スレッド: WEI の条件でも絞り込み、指定があれば並べ替える */
+/** WEI の検索語を取り出し、EMI の検索スレッドでその条件でも絞り込み、指定があれば並べ替える */
 @Mixin(targets = "dev.emi.emi.search.EmiSearch$SearchWorker", remap = false)
 public abstract class SearchWorkerMixin {
+    @Shadow
+    @Final
+    @Mutable
+    private String query;
+
     @Unique
     private List<EmiSearchExtension.Prepared> wei$extensions = List.of();
 
+    /**
+     * 検索ごとに作られる SearchWorker の中で、WEI の検索語を取り出す。
+     * EmiSearch.search の排他ブロックの中・呼び出し元（クライアント）のスレッドで動くので、
+     * 別の検索の条件と混ざらない。残りの語だけを EMI 本体の検索に渡す。
+     */
     @Inject(method = "<init>", at = @At("TAIL"))
-    private void wei$takePrepared(CallbackInfo ci) {
-        EmiHooks.PreparedSearch prepared = EmiHooks.pendingSearch;
-        EmiHooks.pendingSearch = null;
-        if (prepared != null) wei$extensions = prepared.extensions();
+    private void wei$prepare(CallbackInfo ci) {
+        EmiHooks.mark("search");
+        EmiHooks.PreparedSearch prepared = EmiHooks.prepareSearch(query);
+        wei$extensions = prepared.extensions();
+        query = prepared.remainingQuery();
     }
 
     @Redirect(method = "run", at = @At(value = "INVOKE",

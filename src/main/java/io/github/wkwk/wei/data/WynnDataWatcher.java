@@ -3,7 +3,6 @@ package io.github.wkwk.wei.data;
 import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.WeiConfig;
-import io.github.wkwk.wei.emi.EmiReloadHelper;
 
 /**
  * Wynntils のデータと表示条件を見張り、必要なときだけカタログを作り直して EMI を再読み込みする。
@@ -95,7 +94,7 @@ public final class WynnDataWatcher {
             if (emiHasRegistered && stale) {
                 Diag.log(3, "WEI triggers EMI reload: reasons=[{}] catalogStale={} viewStale={} view='{}' registeredView='{}'",
                         reasons, catalogStale, viewStale, appliedViewSignature, registeredViewSignature);
-                EmiReloadHelper.reload();
+                dev.emi.emi.runtime.EmiReloadManager.reload();
             } else {
                 Diag.log(3, "EMI reload skipped: reasons=[{}] emiHasRegistered={} stale={} ({})",
                         reasons, emiHasRegistered, stale,
@@ -103,6 +102,9 @@ public final class WynnDataWatcher {
             }
         }
     }
+
+    private static final long TOOLTIP_WAIT_MAX_MS = 30_000;
+    private static long tooltipWaitSince = -1;
 
     private static void checkData() {
         String data = WynnCatalog.computeDataSignature();
@@ -128,6 +130,21 @@ public final class WynnDataWatcher {
             retryAtMillis = -1;
         }
         if (rebuildRequested || settled || retryDue) {
+            // Wynntils がデータを受け取った直後は、ガイド用アイテムの説明文が空で返ってくることがある（実機ログで先頭 80 件）。
+            // 装備 1 件で説明文が作れるようになるまで作り始めない（最大 30 秒。過ぎたら作る）
+            if (!WynnCatalog.tooltipsReady()) {
+                if (tooltipWaitSince < 0) {
+                    tooltipWaitSince = System.currentTimeMillis();
+                    Diag.log(3, "Waiting for Wynntils tooltips to become ready before building the catalog");
+                }
+                if (System.currentTimeMillis() - tooltipWaitSince < TOOLTIP_WAIT_MAX_MS) return;
+                Wei.LOGGER.warn("Wynntils tooltips are still empty after {}s; building the item list anyway",
+                        TOOLTIP_WAIT_MAX_MS / 1000);
+            }
+            if (tooltipWaitSince >= 0) {
+                Diag.log(3, "Tooltips ready after {}ms", System.currentTimeMillis() - tooltipWaitSince);
+                tooltipWaitSince = -1;
+            }
             buildReason = (rebuildRequested ? "requested(event/command) " : "") + (settled ? "dataChanged " : "")
                     + (retryDue ? "retry#" + failedAttempts : "");
             rebuildRequested = false;

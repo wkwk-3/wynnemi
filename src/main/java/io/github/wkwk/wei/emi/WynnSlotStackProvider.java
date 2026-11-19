@@ -34,18 +34,31 @@ import org.jetbrains.annotations.Nullable;
  * 該当しなければ空を返し、EMI の標準の処理に任せる。
  */
 final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
+    // EMI は描画のたびにカーソルの下を問い合わせてくる。同じアイテム（同じ ItemStack）なら前の結果を返す
+    private ItemStack lastStack;
+    private WynnLookup lastLookup;
+    private EmiStackInteraction lastResult = EmiStackInteraction.EMPTY;
+
     @Override
     public EmiStackInteraction getStackAt(Screen screen, int x, int y) {
         if (!(screen instanceof AbstractContainerScreen<?>)) return EmiStackInteraction.EMPTY;
-        try {
-            Slot slot = ((AbstractContainerScreenAccessor) screen).wei$getHoveredSlot();
-            if (slot == null) return EmiStackInteraction.EMPTY;
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) return EmiStackInteraction.EMPTY;
+        Slot slot = ((AbstractContainerScreenAccessor) screen).wei$getHoveredSlot();
+        if (slot == null) return EmiStackInteraction.EMPTY;
+        ItemStack stack = slot.getItem();
+        if (stack.isEmpty()) return EmiStackInteraction.EMPTY;
+        WynnLookup lookup = WynnLookup.current();
+        if (stack == lastStack && lookup == lastLookup) return lastResult;
+        EmiStackInteraction result = resolve(stack, lookup);
+        lastStack = stack;
+        lastLookup = lookup;
+        lastResult = result;
+        return result;
+    }
 
+    private EmiStackInteraction resolve(ItemStack stack, WynnLookup lookup) {
+        try {
             Optional<WynnItem> wynnItem = Models.Item.getWynnItem(stack);
             if (wynnItem.isEmpty()) return EmiStackInteraction.EMPTY;
-            WynnLookup lookup = WynnLookup.current();
 
             // 未鑑定ボックス：系統のスタックを返し、R でそのレベル範囲の候補へ飛ぶ
             if (wynnItem.get() instanceof GearBoxItem box) {
@@ -137,18 +150,15 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 else if (!out.contains(found)) out.add(found);
             }
         } catch (Throwable t) {
-            io.github.wkwk.wei.Wei.LOGGER.warn("[WEI box] getPossibleGears failed", t);
+            Diag.warn(7, "getPossibleGears failed: {}", t.toString());
         }
-        // 調査用（常に出す）。同じ箱は1回だけ
-        String name = Names.strip(stack.getHoverName().getString());
-        String id = name + "|" + box.getGearType() + "|" + box.getGearTier() + "|" + box.getLevelRange();
-        if (LOGGED_BOXES.add(id)) {
-            io.github.wkwk.wei.Wei.LOGGER.info("[WEI box] '{}' type={} tier={} levels={} possible={} -> shown={} notInList={}",
+        if (Diag.enabled()) {
+            String name = Names.strip(stack.getHoverName().getString());
+            Diag.once(7, "box:" + name + "|" + box.getLevelRange(), "Box '{}' type={} tier={} levels={} possible={} -> shown={} notInList={}",
                     name, box.getGearType(), box.getGearTier(), box.getLevelRange(), names,
                     out.stream().map(WynnEmiStack::key).toList(), missing);
         }
         return out;
     }
 
-    private static final java.util.Set<String> LOGGED_BOXES = java.util.concurrent.ConcurrentHashMap.newKeySet();
 }

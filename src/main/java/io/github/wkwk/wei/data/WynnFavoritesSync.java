@@ -1,5 +1,6 @@
 package io.github.wkwk.wei.data;
 
+import io.github.wkwk.wei.emihook.EmiHooks;
 import io.github.wkwk.wei.Diag;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -53,6 +54,9 @@ public final class WynnFavoritesSync {
         // EMI の読み込み中（お気に入り一覧がいったん空になる）や、WEI の索引ができる前は動かない。
         // 実機ログで、この間に Wynntils 側のお気に入りを全部外していた（diag#2）
         if (!dev.emi.emi.runtime.EmiReloadManager.isLoaded() || !WynnLookup.isReady()) return;
+        // EMI のお気に入り・索引・保持中の未解決分が前回と同じなら比べない
+        long fingerprint = fingerprint();
+        if (fingerprint == lastFingerprint) return;
         try {
             if (added == null) added = load();
 
@@ -93,6 +97,7 @@ public final class WynnFavoritesSync {
             }
             if (changed) save(added);
             failures = 0;
+            lastFingerprint = fingerprint;
         } catch (Throwable t) {
             // 起動直後の一時的な失敗は見逃し、続くなら EMI / Wynntils の内部が変わったとみてこの機能だけ止める
             if (++failures >= MAX_FAILURES) {
@@ -102,10 +107,20 @@ public final class WynnFavoritesSync {
         }
     }
 
+    private static long lastFingerprint = Long.MIN_VALUE;
+
+    private static long fingerprint() {
+        long h = System.identityHashCode(WynnLookup.current());
+        h = h * 31 + System.identityHashCode(EmiHooks.unresolvedFavorites());
+        h = h * 31 + EmiFavorites.favorites.size();
+        for (EmiFavorite f : EmiFavorites.favorites) h = h * 31 + System.identityHashCode(f.getStack());
+        return h;
+    }
+
     /** EMI が読めずに保持しているお気に入りのうち WEI のものを、Wynntils のお気に入りの名前の候補にする */
     private static Set<String> unresolvedNames() {
         Set<String> names = new HashSet<>();
-        for (com.google.gson.JsonObject json : io.github.wkwk.wei.emihook.EmiHooks.unresolvedFavorites()) {
+        for (com.google.gson.JsonObject json : EmiHooks.unresolvedFavorites()) {
             try {
                 com.google.gson.JsonObject stack = json.getAsJsonObject("stack");
                 if (stack == null || !stack.has("key")) continue;

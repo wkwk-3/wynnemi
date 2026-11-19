@@ -6,7 +6,6 @@ import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import io.github.wkwk.wei.emihook.EmiHooks;
-import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.util.Names;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -42,7 +41,7 @@ final class WynnBoxInstances {
             if (recipes == null || recipes.isEmpty()) return null;
             Map<EmiRecipeCategory, List<EmiRecipe>> pages = new LinkedHashMap<>();
             for (EmiRecipe r : recipes) pages.computeIfAbsent(r.getCategory(), c -> new ArrayList<>()).add(r);
-            Wei.LOGGER.info("[WEI box] show {} recipe(s) for '{}' ({})", recipes.size(), wynn.key(), uses ? "U" : "R");
+            io.github.wkwk.wei.Diag.log(7, "Box: show {} recipe(s) for '{}' ({})", recipes.size(), wynn.key(), uses ? "U" : "R");
             return pages;
         });
     }
@@ -50,19 +49,18 @@ final class WynnBoxInstances {
     static @Nullable WynnEmiStack create(ItemStack boxStack, GearBoxItem box, WynnLookup.BoxIndex index,
             List<WynnEmiStack> candidates) {
         registerOnce();
+        List<String> wanted = candidates.stream().map(WynnEmiStack::key).sorted().toList();
+        // 候補の組み合わせごとに 1 つ（種類・ティア・レベル範囲が同じでも、候補が違えば別物）
         String key = PREFIX + box.getGearType() + "/" + box.getGearTier() + "/" + box.getLevelRange().low() + "-"
-                + box.getLevelRange().high() + "/" + candidates.size();
+                + box.getLevelRange().high() + "/" + String.join(",", wanted);
         WynnEmiStack existing = STACKS.get(key);
         if (existing != null) return existing;
 
-        List<String> wanted = candidates.stream().map(WynnEmiStack::key).toList();
+        // 候補 → その候補への「未鑑定ボックス」のレシピ。系統ごとに 1 回だけ作る
+        Map<String, List<EmiRecipe>> byGear = BY_GEAR.computeIfAbsent(index, WynnBoxInstances::indexByGear);
         List<EmiRecipe> recipes = new ArrayList<>();
-        for (WynnLookup.BoxCandidate c : index.candidates()) {
-            if (matches(c.recipe().getOutputs(), wanted) || matchesIngredients(c.recipe().getInputs(), wanted)) {
-                recipes.add(c.recipe());
-            }
-        }
-        Wei.LOGGER.info("[WEI box] instance '{}' candidates={} recipes={}", key, wanted, recipes.size());
+        for (String gear : wanted) recipes.addAll(byGear.getOrDefault(gear, List.of()));
+        io.github.wkwk.wei.Diag.log(7, "Box instance '{}' recipes={}", key, recipes.size());
         if (recipes.isEmpty()) return null;
 
         Component name = Component.literal(Names.strip(boxStack.getHoverName().getString()) + " "
@@ -74,21 +72,26 @@ final class WynnBoxInstances {
         return stack;
     }
 
-    private static boolean matches(List<EmiStack> stacks, List<String> wanted) {
-        for (EmiStack s : stacks) if (s instanceof WynnEmiStack w && wanted.contains(w.key())) return true;
-        return false;
-    }
+    private static final Map<WynnLookup.BoxIndex, Map<String, List<EmiRecipe>>> BY_GEAR =
+            java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
 
-    private static boolean matchesIngredients(List<EmiIngredient> stacks, List<String> wanted) {
-        for (EmiIngredient i : stacks) {
-            for (EmiStack s : i.getEmiStacks()) if (s instanceof WynnEmiStack w && wanted.contains(w.key())) return true;
+    private static Map<String, List<EmiRecipe>> indexByGear(WynnLookup.BoxIndex index) {
+        Map<String, List<EmiRecipe>> out = new java.util.HashMap<>();
+        for (WynnLookup.BoxCandidate c : index.candidates()) {
+            java.util.Set<String> gears = new java.util.HashSet<>();
+            for (EmiStack s : c.recipe().getOutputs()) if (s instanceof WynnEmiStack w) gears.add(w.key());
+            for (EmiIngredient i : c.recipe().getInputs()) {
+                for (EmiStack s : i.getEmiStacks()) if (s instanceof WynnEmiStack w) gears.add(w.key());
+            }
+            for (String g : gears) out.computeIfAbsent(g, k -> new ArrayList<>()).add(c.recipe());
         }
-        return false;
+        return out;
     }
 
     /** EMI の読み込み直しで古いレシピを指さないよう、作り直しのたびに空にする */
     static void clear() {
         RECIPES.clear();
         STACKS.clear();
+        BY_GEAR.clear();
     }
 }

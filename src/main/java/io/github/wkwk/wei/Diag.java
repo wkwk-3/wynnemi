@@ -1,22 +1,33 @@
 package io.github.wkwk.wei;
 
 import java.util.Set;
+import net.fabricmc.loader.api.FabricLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 実機テスト用の診断ログ。行の先頭に {@code [WEI diag#番号]} を付けるので、番号で絞り込める。
- * 番号はコードレビューで挙げた問題の番号（1〜11）に対応する。
+ * 調査用ログ。行頭に {@code [WEI diag#番号]} を付ける（番号は docs/DIAGNOSTICS.md）。
  *
- * <p>config/wei.json の {@code diagnostics} を false にするか、JVM 引数 {@code -Dwei.diag=false} で止まる。
+ * <p>既定: プレリリース（バージョンに「-」を含む）は出す、リリースは出さない。
+ * config/wei.json の {@code diagnostics}（true / false）か、JVM 引数 {@code -Dwei.diag=true|false} で上書きできる。
+ * 引数の組み立てが重い呼び出しは {@link #enabled()} で囲む。
  */
 public final class Diag {
-    private static final boolean SYSTEM_ENABLED = !"false".equalsIgnoreCase(System.getProperty("wei.diag"));
+    private static final String SYSTEM = System.getProperty("wei.diag");
+    private static final boolean PRERELEASE = FabricLoader.getInstance().getModContainer("wei")
+            .map(m -> m.getMetadata().getVersion().getFriendlyString().split("\\+")[0].contains("-"))
+            .orElse(false);
     private static final Set<String> ONCE = ConcurrentHashMap.newKeySet();
 
     private Diag() {}
 
     public static boolean enabled() {
-        return SYSTEM_ENABLED && WeiConfig.get().diagnostics;
+        if (SYSTEM != null) return Boolean.parseBoolean(SYSTEM);
+        Boolean configured = WeiConfig.get().diagnostics;
+        return configured != null ? configured : PRERELEASE;
+    }
+
+    public static boolean prerelease() {
+        return PRERELEASE;
     }
 
     public static void log(int issue, String message, Object... args) {
@@ -27,7 +38,7 @@ public final class Diag {
         if (enabled()) Wei.LOGGER.warn("[WEI diag#" + issue + "] " + message, args);
     }
 
-    /** 同じ key では1回だけ出す（毎フレーム呼ばれる場所用） */
+    /** 同じ key は 1 回だけ（毎フレーム呼ばれる箇所用） */
     public static void once(int issue, String key, String message, Object... args) {
         if (enabled() && ONCE.add(issue + ":" + key)) log(issue, message, args);
     }

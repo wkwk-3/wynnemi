@@ -77,8 +77,8 @@ public final class WeiConfig {
     public String lootHighlightPrice = "lowest";
     /** スロットの色（ARGB） */
     public int lootHighlightColor = 0xFF00FF66;
-    /** 実機テスト用の診断ログ（[WEI diag#番号]）を出す */
-    public boolean diagnostics = true;
+    /** 調査用ログ。null ならプレリリースだけ出す */
+    public Boolean diagnostics = null;
 
     public static WeiConfig get() {
         return instance;
