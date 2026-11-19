@@ -163,6 +163,11 @@ public final class WynnCatalog {
         current = catalog;
     }
 
+    /** 手持ちのボックス（GearBoxItem）からも同じ形で作れる */
+    public static String boxFamilyKey(String gearTypeName, String gearTierName) {
+        return "box/" + gearTypeName + "/" + gearTierName;
+    }
+
     public List<Entry> entries() {
         return entries;
     }

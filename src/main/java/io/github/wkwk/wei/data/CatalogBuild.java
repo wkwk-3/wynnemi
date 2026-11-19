@@ -473,13 +473,8 @@ final class CatalogBuild {
         return false;
     }
 
-    /** 手持ちのボックス（GearBoxItem）からも同じ形で作れる */
-    public static String boxFamilyKey(String gearTypeName, String gearTierName) {
-        return "box/" + gearTypeName + "/" + gearTierName;
-    }
-
     private static BoxFamily boxFamily(String gearTypeName, String gearTierName, String tierDisplay) {
-        return new BoxFamily(boxFamilyKey(gearTypeName, gearTierName), Component.translatable(
+        return new BoxFamily(WynnCatalog.boxFamilyKey(gearTypeName, gearTierName), Component.translatable(
                 "wei.box.name", tierDisplay, Names.titleCase(gearTypeName)));
     }
 
