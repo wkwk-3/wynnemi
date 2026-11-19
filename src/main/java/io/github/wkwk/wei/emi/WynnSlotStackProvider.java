@@ -20,7 +20,6 @@ import io.github.wkwk.wei.mixin.AbstractContainerScreenAccessor;
 import io.github.wkwk.wei.util.Names;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -123,7 +122,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
         }
         String name = item instanceof NamedItemProperty named ? named.getName() : null;
         if (name == null) name = stack.getHoverName().getString();
-        String byName = lookup.keyByPlainName.get(Names.strip(name).toLowerCase(Locale.ROOT));
+        String byName = lookup.keyByPlainName.get(Names.nameKey(name));
         if (byName != null) found = lookup.byKey.get(byName);
         Diag.once(7, "name:" + item.getClass().getName() + ":" + name, "Inventory item matched BY NAME: '{}' ({}) -> {}",
                 name, item.getClass().getSimpleName(), byName == null ? "no match" : byName);
@@ -144,7 +143,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
 
     /** diag#7: 名前で見つからないとき、最後の単語を含むカタログ名を最大 5 件出す */
     private static void logNameCandidates(WynnLookup lookup, String name) {
-        String stripped = Names.strip(name).toLowerCase(Locale.ROOT).trim();
+        String stripped = Names.nameKey(name);
         String[] words = stripped.split("\\s+");
         String last = words.length == 0 ? "" : words[words.length - 1];
         if (last.length() < 3) return;
@@ -169,7 +168,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 names.add(gear.name());
                 WynnEmiStack found = lookup.byKey.get("gear/" + gear.name());
                 if (found == null) {
-                    String key = lookup.keyByPlainName.get(Names.strip(gear.name()).toLowerCase(Locale.ROOT));
+                    String key = lookup.keyByPlainName.get(Names.nameKey(gear.name()));
                     if (key != null) found = lookup.byKey.get(key);
                 }
                 if (found == null) missing.add(gear.name());

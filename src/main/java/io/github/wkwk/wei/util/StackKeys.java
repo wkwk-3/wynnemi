@@ -2,7 +2,6 @@ package io.github.wkwk.wei.util;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 import org.jetbrains.annotations.Nullable;
@@ -41,7 +40,7 @@ public final class StackKeys {
         String group = key.substring(0, slash);
         if (!UNNAMED_GROUPS.contains(group)) return null;
         String name = key.substring(slash + 1).replaceAll("#\\d+$", "");
-        String now = keyByPlainName.apply(Names.strip(name).toLowerCase(Locale.ROOT));
+        String now = keyByPlainName.apply(Names.nameKey(name));
         return now != null && now.startsWith(group + "/") && !now.equals(key) ? now : null;
     }
 

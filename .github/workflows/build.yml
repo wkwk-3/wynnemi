@@ -36,14 +36,6 @@ jobs:
           # fabric.mod.json の依存範囲と照らすため、MOD としてのバージョンを出す
           unzip -p libs/wynntils.jar fabric.mod.json | grep -m1 '"version"'
 
-      # 一時的: ハイライトの差し込み先（renderSlotOverlays）のバイトコードを確かめる
-      - name: Inspect PF-EMI renderSlotOverlays
-        run: |
-          url=$(curl -s 'https://api.modrinth.com/v2/project/pf-emi/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%221.21.11%22%5D' | jq -r '.[0].files[] | select(.primary) | .url')
-          curl -sL "$url" -o /tmp/pfemi.jar && mkdir -p /tmp/pfx && cd /tmp/pfx && unzip -q /tmp/pfemi.jar 'dev/emi/emi/*'
-          javap -c -p dev/emi/emi/screen/EmiScreenManager.class | awk '/renderSlotOverlays\(/,/^$/' | grep -nE 'compiledQuery|highlight|CompiledQuery|EmiStack.of|fill|getScreenHandler|slots' | head -40
-          javap -c -p 'dev/emi/emi/search/EmiSearch$SearchWorker.class' | grep -nE 'compiledQuery|isEmpty|CompiledQuery."<init>"' | head
-
       - name: Build
         run: |
           chmod +x gradlew

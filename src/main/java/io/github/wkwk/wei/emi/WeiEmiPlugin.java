@@ -135,7 +135,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
             registry.addEmiStack(item);
             WynnEmiStackSerializer.remember(item);
             byKey.put(entry.key(), item);
-            keyByPlainName.putIfAbsent(entry.plainName().toLowerCase(Locale.ROOT), entry.key());
+            keyByPlainName.putIfAbsent(io.github.wkwk.wei.util.Names.nameKey(entry.plainName()), entry.key());
             if (entry.favoriteName() != null) favoriteNameByKey.put(entry.key(), entry.favoriteName());
 
             // 素の名前・レアリティ・種類・レベルでも検索できるよう別名を付ける

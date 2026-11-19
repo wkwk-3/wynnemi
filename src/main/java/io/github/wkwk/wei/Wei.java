@@ -90,6 +90,7 @@ public final class Wei implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             WynntilsDownloadListener.registerOnce();
             io.github.wkwk.wei.loot.LootHighlight.registerOnce();
+            io.github.wkwk.wei.emi.SearchHighlight.registerOnce();
             WynnDataWatcher.tick();
             WynnFavoritesSync.tick();
             // /wei search: チャットが閉じた後に開く

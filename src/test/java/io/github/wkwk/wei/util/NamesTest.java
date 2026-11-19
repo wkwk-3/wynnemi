@@ -27,4 +27,15 @@ class NamesTest {
         assertEquals("a/b.c-d_e", Names.idPath("A/B.C-D_E"));
         assertEquals("hurricane_s_eye", Names.idPath("Hurricane's Eye"));
     }
+
+    @Test
+    void nameKeyDropsFontGlyphsAndSpacingCharacters() {
+        // ルーン名の前の字送り文字（U+CFFF0 など、未割り当て）と私用領域のアイコン
+        assertEquals("az rune", Names.nameKey(new String(Character.toChars(0xCFFF0)) + new String(Character.toChars(0xCFFCF))
+                + new String(Character.toChars(0xD0005)) + "Az Rune"));
+        assertEquals("tol rune", Names.nameKey("\uE000Tol  Rune" + new String(Character.toChars(0x100002))));
+        assertEquals("emerald pouch [tier 7]", Names.nameKey("§aEmerald Pouch [Tier 7]"));
+        // 日本語はそのまま
+        assertEquals("エメラルド", Names.nameKey("エメラルド"));
+    }
 }

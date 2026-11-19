@@ -29,6 +29,9 @@ public abstract class SearchWorkerMixin implements WeiHooked {
 
     @Unique
     private List<EmiSearchExtension.Prepared> wei$extensions = List.of();
+    /** WEI の語を取り出す前の検索文字列（ハイライトの結果の使い回しに使う） */
+    @Unique
+    private String wei$fullQuery = "";
 
     /**
      * WEI の検索語を取り出し、残りを EMI 本体に渡す。
@@ -37,6 +40,7 @@ public abstract class SearchWorkerMixin implements WeiHooked {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void wei$prepare(CallbackInfo ci) {
         EmiHooks.mark("search");
+        wei$fullQuery = query;
         EmiHooks.PreparedSearch prepared = EmiHooks.prepareSearch(query);
         wei$extensions = prepared.extensions();
         query = prepared.remainingQuery();
@@ -46,7 +50,7 @@ public abstract class SearchWorkerMixin implements WeiHooked {
             target = "Ldev/emi/emi/search/EmiSearch$CompiledQuery;isEmpty()Z"))
     private boolean wei$isEmpty(dev.emi.emi.search.EmiSearch.CompiledQuery compiled) {
         // 直前で EmiSearch.compiledQuery に入ったクエリ。ハイライト表示はこれと組で WEI の条件を引く
-        EmiHooks.setActiveSearch(compiled, wei$extensions);
+        EmiHooks.setActiveSearch(compiled, wei$fullQuery, wei$extensions);
         return compiled.isEmpty() && wei$extensions.isEmpty();
     }
 

@@ -10,7 +10,6 @@ import io.github.wkwk.wei.Diag;
 import io.github.wkwk.wei.Wei;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -138,18 +137,18 @@ public final class EmiHooks {
     }
 
     /** 検索スレッドが使った EMI のクエリと WEI の条件（ハイライト表示で同じ条件を使うため） */
-    private record ActiveSearch(Object query, List<EmiSearchExtension.Prepared> extensions) {}
+    private record ActiveSearch(Object query, String fullQuery, List<EmiSearchExtension.Prepared> extensions) {}
 
     private static volatile @Nullable ActiveSearch activeSearch;
     private static volatile Function<ItemStack, List<? extends EmiStack>> slotResolver = s -> List.of();
     private static volatile Supplier<Object> slotResolverVersion = () -> null;
     /** 以下 3 つは描画スレッドのみ。ItemStack は equals を持たないため同一性で引ける */
     private static final Map<ItemStack, Boolean> HIGHLIGHT_CACHE = new WeakHashMap<>();
-    private static @Nullable ActiveSearch highlightCacheSearch;
+    private static @Nullable String highlightCacheQuery;
     private static @Nullable Object highlightCacheVersion;
 
-    public static void setActiveSearch(Object compiledQuery, List<EmiSearchExtension.Prepared> extensions) {
-        activeSearch = new ActiveSearch(compiledQuery, extensions);
+    public static void setActiveSearch(Object compiledQuery, String fullQuery, List<EmiSearchExtension.Prepared> extensions) {
+        activeSearch = new ActiveSearch(compiledQuery, fullQuery, extensions);
     }
 
     /** スロットのアイテムを検索の対象（WEI のスタック）に変換する。version が変わると結果を捨てる */
@@ -159,36 +158,26 @@ public final class EmiHooks {
     }
 
     /**
-     * ハイライト表示用。WEI の条件が無ければ null。
-     * あれば EmiStack.of(アイテム) → 条件に合うか の表を返す（候補のどれかが合えば合格）。
+     * ハイライト表示で、このアイテムが WEI の条件に合うか。WEI の条件が無ければ true。
+     * 未鑑定ボックスは候補のどれかが合えば合格。描画スレッドから呼ぶ。
      */
-    public static @Nullable Map<EmiStack, Boolean> highlightResults(Object compiledQuery, List<ItemStack> items) {
+    public static boolean highlightPass(Object compiledQuery, ItemStack item) {
         ActiveSearch search = activeSearch;
-        if (search == null || search.query() != compiledQuery || search.extensions().isEmpty()) {
-            Diag.once(13, "highlight-skip:" + (search == null ? "none" : search.query() != compiledQuery ? "query" : "noext"),
-                    "Highlight: WEI terms not applied (activeSearch={}, sameQuery={}, extensions={})",
-                    search != null, search != null && search.query() == compiledQuery,
-                    search == null ? 0 : search.extensions().size());
-            return null;
-        }
+        if (search == null || search.query() != compiledQuery || search.extensions().isEmpty()) return true;
+        if (item.isEmpty()) return false;
+        // EMI は同じ文字列でも検索をやり直すため、文字列が同じ間は結果を使い回す
         Object version = slotResolverVersion.get();
-        if (search != highlightCacheSearch || version != highlightCacheVersion) {
+        if (!search.fullQuery().equals(highlightCacheQuery) || version != highlightCacheVersion) {
             HIGHLIGHT_CACHE.clear();
-            highlightCacheSearch = search;
+            highlightCacheQuery = search.fullQuery();
             highlightCacheVersion = version;
         }
-        Map<EmiStack, Boolean> out = new HashMap<>();
-        for (ItemStack item : items) {
-            if (item.isEmpty()) continue;
-            Boolean pass = HIGHLIGHT_CACHE.get(item);
-            if (pass == null) {
-                pass = matches(search, item);
-                HIGHLIGHT_CACHE.put(item, pass);
-                Diag.log(13, "Highlight: '{}' -> {}", item.getHoverName().getString(), pass ? "match" : "dim");
-            }
-            out.merge(EmiStack.of(item), pass, Boolean::logicalOr);
+        Boolean pass = HIGHLIGHT_CACHE.get(item);
+        if (pass == null) {
+            pass = matches(search, item);
+            HIGHLIGHT_CACHE.put(item, pass);
         }
-        return out;
+        return pass;
     }
 
     private static boolean matches(ActiveSearch search, ItemStack item) {

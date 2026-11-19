@@ -11,6 +11,8 @@ public final class Names {
      * 正規表現はコードポイント単位で照合するため、サロゲートの範囲指定では消せない。
      */
     private static final Pattern PRIVATE_USE = Pattern.compile("\\p{Co}");
+    /** 字送り用の未割り当ての符号位置（ルーン名の前に付く U+CFFF0 など） */
+    private static final Pattern UNASSIGNED = Pattern.compile("\\p{Cn}");
     public static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final Pattern ID_UNSAFE = Pattern.compile("[^a-z0-9/._-]");
     private static final Pattern NON_ALNUM = Pattern.compile("[^\\p{L}\\p{N}]+");
@@ -21,6 +23,15 @@ public final class Names {
         String stripped = ChatFormatting.stripFormatting(s);
         if (stripped == null) return "";
         return WHITESPACE.matcher(PRIVATE_USE.matcher(stripped).replaceAll("")).replaceAll(" ").trim();
+    }
+
+    /**
+     * 名前で引くときの照合キー（記号・色コード・字送り文字を除いた小文字）。
+     * strip と違い未割り当ての文字も消す。strip は既存のキーに使われているため変えない。
+     */
+    public static String nameKey(String s) {
+        return WHITESPACE.matcher(UNASSIGNED.matcher(strip(s)).replaceAll("")).replaceAll(" ").trim()
+                .toLowerCase(Locale.ROOT);
     }
 
     /** 表記揺れ（大小文字・空白・記号・色コード）を吸収した照合キー */
