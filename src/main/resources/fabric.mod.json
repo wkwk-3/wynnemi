@@ -26,7 +26,10 @@
     "java": ">=21",
     "fabric-api": "*",
     "wynntils": ">=4.2.18",
-    "emi": ">=1.1.23-pf.18"
+    "emi": "*"
+  },
+  "breaks": {
+    "emi": "<1.1.23-pf.18"
   },
   "mixins": [
     "wei.mixins.json",

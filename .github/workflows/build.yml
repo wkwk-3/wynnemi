@@ -50,7 +50,7 @@ jobs:
 
       # 一時的: SNAPSHOT をやめるため、Loom の公開済みバージョンを確かめる
       - name: List Loom versions
-        run: curl -s https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml | grep -o '<version>1\.1[45][^<]*' | tail -20
+        run: curl -s https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml | grep -o '<version>1\.14[^<]*' | tail -20
 
       - name: Build
         run: |
