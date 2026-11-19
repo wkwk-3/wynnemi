@@ -32,35 +32,35 @@ import net.minecraft.world.item.Items;
 
 @EmiEntrypoint
 public final class WeiEmiPlugin implements EmiPlugin {
-    /** レベル順に並べる（WynnLinkRecipe の sortKey） */
+    /** WynnLinkRecipe の sortKey 順 */
     private static final Comparator<EmiRecipe> BY_SORT_KEY = Comparator.comparingInt(
             r -> r instanceof WynnLinkRecipe link ? link.sortKey() : 0);
 
     @Override
     public void initialize(EmiInitRegistry registry) {
-        // お気に入り保存用（PF-EMI では EmiRegistry 側の登録は非推奨）
+        // お気に入りの保存形式（EmiRegistry 側の登録は非推奨）
         registry.addIngredientSerializer(WynnEmiStack.class, new WynnEmiStackSerializer());
     }
 
     @Override
     public void register(EmiRegistry registry) {
-        // このスレッドでは Wynntils に触れず、クライアントスレッドで作ったスナップショットだけを使う
+        // EMI のスレッド。Wynntils には触れずスナップショットだけを使う
         WeiConfig config = WeiConfig.get();
         WynnCatalog catalog = WynnCatalog.current();
         String view = WynnDataWatcher.viewSignature();
         boolean onWynncraft = WynnDataWatcher.onWynncraft();
         WynnDataWatcher.markEmiRegistered(catalog, view);
         long diagStart = System.nanoTime();
-        // diag#3: 登録時に使った接続状態（1 秒ごとの確認の値）と、その瞬間の実際の値がずれていれば二重読み込みの原因
+        // diag#3: 記録済みの接続状態と実際の値のずれは二重読み込みの原因
         Diag.log(3, "Plugin register START: cachedOnWynncraft={} liveOnWynncraft={} catalog={} items, sets={}",
                 onWynncraft, WynnCatalog.isOnWynncraftNow(), catalog.entries().size(), catalog.sets().size());
 
         WynnEmiStackSerializer.clear();
 
-        // 1. 手持ちのアイテムでも R/U が効くように（該当しないスロットは EMI 標準の処理へ）
+        // 手持ちのアイテムの R/U
         registry.addGenericStackProvider(new WynnSlotStackProvider());
 
-        // Wynncraft にいる間はバニラのアイテム・レシピを隠す（無効化は全プラグインの後に適用される）
+        // Wynncraft ではバニラを隠す（無効化は全プラグインの後に適用される）
         if (config.hideVanillaOnWynncraft && onWynncraft) {
             registry.removeEmiStacks(stack -> !(stack instanceof WynnEmiStack));
             registry.removeRecipes(recipe -> !(recipe instanceof WynnLinkRecipe) && !(recipe instanceof WynnSetRecipe)
@@ -68,8 +68,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
         }
 
         if (catalog.entries().isEmpty()) {
-            // Wynntils のデータがまだ無い。揃ったら WynnDataWatcher が EMI を再読み込みする
-            // diag#1: この状態で EMI がお気に入りを読むと、WEI のお気に入りは落とされる
+            // データ未着。揃えば WynnDataWatcher が再読み込みする
             Diag.warn(1, "Plugin registered with an EMPTY catalog: WEI favorites/hidden stacks in EMI's file will be dropped on this load");
             WynnLookup.publish(new WynnLookup(Map.of(), Map.of(), Map.of(), Map.of()));
             return;
@@ -87,12 +86,12 @@ public final class WeiEmiPlugin implements EmiPlugin {
                         Wei.id("obtain/" + type.name().toLowerCase(Locale.ROOT)), icon);
                 obtainCategories.put(type, category);
                 registry.addCategory(category);
-                // 作業台欄のアイコンを押すと、その種類で手に入る全アイテムが出る
+                // 作業台欄のアイコンでその種類の全アイテムを引ける
                 registry.addWorkstation(category, icon);
             }
         }
 
-        // 4. 製作素材は必要レベル順
+        // 製作素材は必要レベル順
         EmiStack craftingIcon = EmiStack.of(Items.CRAFTING_TABLE);
         EmiRecipeCategory craftingCategory = new EmiRecipeCategory(
                 Wei.id("crafting_use"), craftingIcon, craftingIcon, BY_SORT_KEY);
@@ -104,18 +103,15 @@ public final class WeiEmiPlugin implements EmiPlugin {
             registry.addCategory(gatheringCategory);
         }
 
-        // 5. 必要クエスト
         EmiStack questIcon = EmiStack.of(Items.WRITABLE_BOOK);
         EmiRecipeCategory questCategory = new EmiRecipeCategory(
                 Wei.id("quest_required"), questIcon, questIcon, BY_SORT_KEY);
-        // 2. 未鑑定ボックスの中身（レベル順）
         EmiStack boxIcon = EmiStack.of(Items.CHEST);
         EmiRecipeCategory boxCategory = new EmiRecipeCategory(
                 Wei.id("gear_box"), boxIcon, boxIcon, BY_SORT_KEY);
-        // 6. セット装備
+        // セット装備
         EmiStack setIcon = EmiStack.of(Items.ARMOR_STAND);
         EmiRecipeCategory setCategory = new EmiRecipeCategory(Wei.id("set"), setIcon);
-        // 7. アスペクトのティア
         EmiStack aspectIcon = EmiStack.of(Items.NETHER_STAR);
         EmiRecipeCategory aspectCategory = new EmiRecipeCategory(Wei.id("aspect_tier"), aspectIcon);
         if (config.showGearRecipes) {
@@ -133,7 +129,6 @@ public final class WeiEmiPlugin implements EmiPlugin {
         Map<String, List<WynnLookup.BoxCandidate>> boxCandidates = new HashMap<>();
 
         for (WynnCatalog.Entry entry : catalog.entries()) {
-            // アイテム一覧への登録（説明文つき・個別に区別される）
             WynnEmiStack item = WynnEmiStack.ofItem(entry.key(), entry.stack(), entry.displayName(), entry.tooltip());
             registry.addEmiStack(item);
             WynnEmiStackSerializer.remember(item);
@@ -141,7 +136,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
             keyByPlainName.putIfAbsent(entry.plainName().toLowerCase(Locale.ROOT), entry.key());
             if (entry.favoriteName() != null) favoriteNameByKey.put(entry.key(), entry.favoriteName());
 
-            // 3. 色付き・アイコン付きの名前でも、普通の名前とレアリティ・種類・レベルなどで検索できるように
+            // 素の名前・レアリティ・種類・レベルでも検索できるよう別名を付ける
             registry.addAlias(item, Component.literal(entry.aliases() == null
                     ? entry.plainName()
                     : entry.plainName() + " " + entry.aliases()));
@@ -162,7 +157,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
             }
 
             if (config.showProfessionRecipes) {
-                // 4. 素材 → 使える製作職業（U で使い道、職業で R すると使える素材一覧。レベル順）
+                // 素材 → 製作職業
                 for (ProfessionType profession : entry.craftProfessions()) {
                     Identifier id = uniqueId(usedRecipeIds,
                             "/crafting_use/" + item.getId().getPath() + "/" + profession.name().toLowerCase(Locale.ROOT));
@@ -182,7 +177,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
             }
 
             if (config.showGearRecipes) {
-                // 5. クエスト → 使えるようになる装備（装備で R、クエストで U）
+                // クエスト → 装備
                 if (entry.requiredQuest() != null) {
                     WynnEmiStack quest = sources.sourceStack(new WynnCatalog.ObtainSnapshot(
                             ItemObtainType.QUEST, entry.requiredQuest(), entry.requiredQuest()));
@@ -194,7 +189,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
                     }
                 }
 
-                // 2. 未鑑定ボックス → 候補（ボックスで R、装備で U。見た目は ボックス → 装備）
+                // 未鑑定ボックス → 候補（ボックスで R、装備で U）
                 if (entry.boxFamily() != null) {
                     WynnCatalog.BoxFamily family = entry.boxFamily();
                     WynnEmiStack box = boxStacks.computeIfAbsent(family.key(), k -> WynnEmiStack.ofVirtual(
@@ -213,7 +208,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
             }
         }
 
-        // 6. セット装備
+        // セット装備
         if (config.showGearRecipes) {
             for (WynnCatalog.SetSnapshot set : catalog.sets()) {
                 List<EmiStack> members = new ArrayList<>();
@@ -235,7 +230,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
             }
         }
 
-        // 7. アスペクトのティア（何個集めると次のティアになるか）
+        // アスペクトのティア
         if (config.showGearRecipes) {
             for (WynnCatalog.AspectSnapshot aspect : catalog.aspects()) {
                 WynnEmiStack stack = byKey.get(aspect.key());
@@ -253,7 +248,7 @@ public final class WeiEmiPlugin implements EmiPlugin {
         }
         for (WynnEmiStack source : sources.allSourceStacks()) {
             WynnEmiStackSerializer.remember(source);
-            // 一覧から「Decrepit」などで検索して U → そこで手に入るアイテムを逆引き
+            // 入手元を検索して U で逆引きできる
             if (config.showSourcesInIndex) registry.addEmiStack(source);
         }
         for (WynnEmiStack profession : sources.allProfessionStacks()) {

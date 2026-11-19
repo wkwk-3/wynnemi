@@ -16,7 +16,7 @@ import com.wynntils.models.items.items.game.TomeItem;
 import java.util.Optional;
 import net.minecraft.world.item.ItemStack;
 
-/** 高額通知の基準を種類ごとに変えるための分類（設定ファイルでは id で書く） */
+/** 高額通知の種類。設定ファイルでは id で書く。 */
 public enum LootCategory {
     GEAR_BOX("gearBox"),
     GEAR("gear"),
@@ -55,7 +55,7 @@ public enum LootCategory {
         return OTHER;
     }
 
-    /** 種類ごとに選べるレア度（先頭は any） */
+    /** 選べるレア度。先頭は any。 */
     public String[] rarities() {
         return switch (this) {
             case GEAR_BOX, GEAR, TOME, CHARM, ASPECT ->
@@ -67,7 +67,7 @@ public enum LootCategory {
         };
     }
 
-    /** アイテムのレア度（Wynntils の判定）。分からなければ any */
+    /** Wynntils の判定によるレア度。不明なら any。 */
     public static String rarityOf(ItemStack stack) {
         Optional<WynnItem> item = Models.Item.getWynnItem(stack);
         if (item.isEmpty()) return "any";

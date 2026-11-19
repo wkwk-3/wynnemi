@@ -9,32 +9,31 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 
-/** config/wei.json。変更後は /wei reload で反映される。 */
+/** config/wei.json。手で編集したら /wei reload。 */
 public final class WeiConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static volatile WeiConfig instance = new WeiConfig();
 
-    /** Wynncraft 接続中は EMI からバニラのアイテムとレシピを隠す */
+    /** Wynncraft 接続中はバニラのアイテムとレシピを隠す */
     public boolean hideVanillaOnWynncraft = true;
-    /** 「入手元」アイテム（例: Dungeon: Decrepit Sewers）をアイテム一覧にも並べる。検索から逆引きできる */
+    /** 入手元の仮想アイテム（例: Dungeon: Decrepit Sewers）を一覧に並べる */
     public boolean showSourcesInIndex = true;
-    /** 入手方法のレシピを登録する */
+    /** 入手方法のレシピ */
     public boolean showObtainRecipes = true;
-    /** 素材→使える製作職業、採集職業→素材 のレシピを登録する */
+    /** 素材 → 製作職業、採集職業 → 素材 のレシピ */
     public boolean showProfessionRecipes = true;
-    /** 必要クエスト・未鑑定ボックスの中身・セット装備のレシピを登録する */
+    /** 必要クエスト・未鑑定ボックス・セット装備・アスペクトのティアのレシピ */
     public boolean showGearRecipes = true;
-    /** EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる */
+    /** EMI のお気に入りを Wynntils のお気に入りにも入れる */
     public boolean syncFavoritesToWynntils = true;
-    /** ルートチェスト・報酬チェストで、取引所の価格が高いアイテムのスロットに色を付ける（Wynnventory が必要） */
+    /** 報酬チェストの高額アイテムを強調する（要 Wynnventory） */
     public boolean lootHighlightEnabled = true;
-    /** 高額アイテムがあったら音を鳴らす */
     public boolean lootHighlightSound = true;
-    /** 高額とみなす価格（LE。1 LE = 4096 エメラルド） */
+    /** 既定の基準（LE。1 LE = 4096 エメラルド） */
     public double lootHighlightThresholdLe = 1.5;
     /**
-     * 種類とレア度ごとの基準。当てはまる中で一番細かい指定（種類+レア度 > 種類だけ > レア度だけ）を使い、
-     * どれにも当てはまらなければ lootHighlightThresholdLe。基準が負ならその組み合わせは通知しない。
+     * 種類・レア度別の基準。最も細かい一致（種類+レア度 > 種類 > レア度）を使い、
+     * 一致が無ければ lootHighlightThresholdLe。負は通知しない。
      */
     public java.util.List<LootRule> lootRules = new java.util.ArrayList<>();
 
@@ -54,7 +53,6 @@ public final class WeiConfig {
         }
     }
 
-    /** その種類・レア度の基準（LE）。負なら通知しない */
     public double thresholdFor(String type, String rarity) {
         double best = lootHighlightThresholdLe;
         int bestScore = -1;
@@ -73,11 +71,11 @@ public final class WeiConfig {
         }
         return best;
     }
-    /** 判定に使う価格: lowest（最安値）/ average / average80（上下10%を除いた平均）/ median / highest */
+    /** lowest / average / average80（上下 10% を除く）/ median / highest */
     public String lootHighlightPrice = "lowest";
-    /** スロットの色（ARGB） */
+    /** 強調色（ARGB） */
     public int lootHighlightColor = 0xFF00FF66;
-    /** 調査用ログ。null ならプレリリースだけ出す */
+    /** 調査用ログ。null ならプレリリースのみ */
     public Boolean diagnostics = null;
 
     public static WeiConfig get() {
@@ -105,11 +103,11 @@ public final class WeiConfig {
         }
         if (loaded == null) loaded = new WeiConfig();
         if (loaded.lootRules == null) loaded.lootRules = new java.util.ArrayList<>();
-        // 1.0.1-test.14 までの初期値（橙）は Wynntils のレア度の色と紛らわしいので、新しい初期値（緑）にする
+        // 旧初期値（橙）を現初期値（緑）に移行
         if (loaded.lootHighlightColor == 0xA0FFAA00) loaded.lootHighlightColor = 0xFF00FF66;
         instance = loaded;
 
-        // 足りない項目を補って書き戻す
+        // 欠けた項目を補って書き戻す
         try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
             GSON.toJson(loaded, writer);
         } catch (Exception e) {
@@ -118,7 +116,7 @@ public final class WeiConfig {
     }
 
     String signature() {
-        // EMI の表示に関わる項目だけ（お気に入りの連動は表示に関係しない）
+        // EMI の表示に関わる項目のみ
         return hideVanillaOnWynncraft + "," + showSourcesInIndex + "," + showObtainRecipes + "," + showProfessionRecipes
                 + "," + showGearRecipes;
     }

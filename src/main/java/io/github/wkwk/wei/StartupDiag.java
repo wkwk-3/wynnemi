@@ -4,7 +4,7 @@ import java.util.Optional;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 
-/** diag#10: 実際に読み込まれた EMI がこの MOD に同梱したフォークか、ほかの EMI かを起動時に記録する */
+/** diag#10: 起動時に WEI・EMI・Wynntils の版を記録する。 */
 final class StartupDiag {
     private StartupDiag() {}
 
@@ -12,7 +12,6 @@ final class StartupDiag {
         if (!Diag.enabled()) return;
         try {
             FabricLoader loader = FabricLoader.getInstance();
-            // テストに使った jar を見分けるため
             Diag.log(10, "WEI version: {}", loader.getModContainer("wei")
                     .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?"));
             Optional<ModContainer> emi = loader.getModContainer("emi");

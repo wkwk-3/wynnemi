@@ -14,13 +14,13 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
-/** WEI の設定画面。「完了」で config/wei.json に保存し、一覧やレシピに関わる設定が変わったら EMI を読み込み直す */
+/** 設定画面。閉じると保存し、一覧・レシピに関わる設定が変わっていれば EMI を読み込み直す。 */
 public final class WeiConfigScreen extends Screen {
     private static final String[] PRICE_TYPES = {"lowest", "average", "average80", "median", "highest"};
 
     private final @Nullable Screen parent;
     private final WeiConfig config = WeiConfig.get();
-    /** EMI の読み込み直しが要る設定の、開いたときの値 */
+    /** EMI の再読み込みが要る設定の、開いた時点の値 */
     private final String reloadSnapshot;
 
     private EditBox thresholdBox;
@@ -44,7 +44,7 @@ public final class WeiConfigScreen extends Screen {
         int right = width / 2 + 5;
         int y = 40;
 
-        // 左の列: アイテム一覧
+        // 左: アイテム一覧
         int ly = y;
         ly = toggle(left, ly, colW, "hideVanilla", () -> config.hideVanillaOnWynncraft, v -> config.hideVanillaOnWynncraft = v);
         ly = toggle(left, ly, colW, "showSources", () -> config.showSourcesInIndex, v -> config.showSourcesInIndex = v);
@@ -54,7 +54,7 @@ public final class WeiConfigScreen extends Screen {
         ly = toggle(left, ly, colW, "syncFavorites", () -> config.syncFavoritesToWynntils, v -> config.syncFavoritesToWynntils = v);
         ly = toggle(left, ly, colW, "diagnostics", io.github.wkwk.wei.Diag::enabled, v -> config.diagnostics = v);
 
-        // 右の列: 高額アイテムの通知
+        // 右: 高額アイテムの通知
         int ry = y;
         ry = toggle(right, ry, colW, "lootEnabled", () -> config.lootHighlightEnabled, v -> config.lootHighlightEnabled = v);
         ry = toggle(right, ry, colW, "lootSound", () -> config.lootHighlightSound, v -> config.lootHighlightSound = v);
@@ -77,7 +77,6 @@ public final class WeiConfigScreen extends Screen {
         addRenderableWidget(colorBox);
         ry += 24;
 
-        // 種類とレア度ごとの基準は別の画面で追加・削除する
         addRenderableWidget(Button.builder(Component.translatable("wei.config.lootRules"), b -> {
                     applyBoxes();
                     minecraft.setScreen(new LootRulesScreen(this));
@@ -136,7 +135,6 @@ public final class WeiConfigScreen extends Screen {
         if (thresholdBox != null) {
             g.drawString(font, Component.translatable("wei.config.lootThreshold"), right, thresholdBox.getY() + 5, 0xFFE0E0E0);
             g.drawString(font, Component.translatable("wei.config.lootColor"), right, colorBox.getY() + 5, 0xFFE0E0E0);
-            // 色の見本
             int c = parseColor(colorBox.getValue(), config.lootHighlightColor);
             g.fill(right + 70, colorBox.getY() + 1, right + 86, colorBox.getY() + 17, c);
         }
@@ -151,13 +149,13 @@ public final class WeiConfigScreen extends Screen {
         }
     }
 
-    /** 入力欄の値を設定に書き込む（保存はしない） */
+    /** 入力欄を設定に反映（保存はしない） */
     private void applyBoxes() {
         try {
             double v = Double.parseDouble(thresholdBox.getValue());
             if (v >= 0) config.lootHighlightThresholdLe = v;
         } catch (RuntimeException ignored) {
-            // 空や「.」だけなら前の値のまま
+            // 数値でなければ据え置き
         }
         config.lootHighlightColor = parseColor(colorBox.getValue(), config.lootHighlightColor);
     }

@@ -14,14 +14,14 @@ import io.github.wkwk.wei.data.WynnCatalog;
 import io.github.wkwk.wei.util.Names;
 
 /**
- * 「入手元」と「職業」の仮想アイテムを作って使い回す（同じ入手元は1つのスタックにまとめる）。
- * EMI のスレッドで動くので、Wynntils のモデルには触れず、カタログのスナップショットだけを使う。
+ * 入手元・職業の仮想スタック。同じ入手元は 1 つにまとめる。
+ * EMI のスレッドで呼ばれるため、Wynntils には触れずカタログのスナップショットだけを使う。
  */
 final class WynnSources {
     private final Map<String, WynnEmiStack> sources = new HashMap<>();
     private final Map<ProfessionType, WynnEmiStack> professions = new HashMap<>();
 
-    /** 入手方法の種類そのもの（カテゴリのアイコンと作業台に使う） */
+    /** 入手方法の種類（カテゴリのアイコンと作業台）。 */
     WynnEmiStack typeStack(ItemObtainType type) {
         return sources.computeIfAbsent("source/" + type.name(), key -> WynnEmiStack.ofVirtual(
                 key,
@@ -30,7 +30,7 @@ final class WynnSources {
                 List.of(Component.translatable("wei.tooltip.obtain_type").withStyle(ChatFormatting.GRAY))));
     }
 
-    /** 具体的な入手元（例: Decrepit Sewers）。名前が無いものは種類のスタックを返す。 */
+    /** 個別の入手元（例: Decrepit Sewers）。名前が無ければ種類のスタック。 */
     WynnEmiStack sourceStack(WynnCatalog.ObtainSnapshot info) {
         ItemObtainType type = info.type();
         String name = info.sourceName();

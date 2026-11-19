@@ -18,13 +18,12 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Wynncraft 用の条件検索（公式サイトのアイテム検索に近い画面）。
- * 選んだ条件を WEI の検索語にして EMI の検索欄に入れる。通信はしない。
+ * Wynncraft 用の条件検索。選んだ条件を WEI の検索語にして EMI の検索欄に入れる。
  *
  * <pre>
- *  左の列: 名前 / 種類・詳細 / ティア / レベル / 攻撃速度 / 職業
- *  右の列: 必要スキル（5 種の範囲）/ スキルボーナス（5 種の範囲）/ ID / メジャー ID
- *  下:     できあがる検索語 / 検索・クリア・閉じる
+ *  左: 名前 / 種類・詳細 / ティア / レベル / 攻撃速度 / 職業 / 必要スキル
+ *  右: スキルボーナス / ID の条件 / メジャー ID
+ *  下: 検索語のプレビュー / ボタン
  * </pre>
  */
 public final class WeiSearchScreen extends Screen {
@@ -34,7 +33,7 @@ public final class WeiSearchScreen extends Screen {
     private static final String[] ATTACK_SPEEDS = {"", "superSlow", "verySlow", "slow", "normal", "fast", "veryFast", "superFast"};
     private static final String[] CRAFTING = {"", "alchemism", "armouring", "cooking", "jeweling", "scribing", "tailoring", "weaponsmithing", "woodworking"};
     private static final String[] GATHERING = {"", "mining", "fishing", "farming", "woodcutting"};
-    /** 必要スキルの検索キー（strReq など）と、スキルボーナスの ID 名 */
+    /** 必要スキルのキー接頭辞（strReq など）とスキルボーナスの ID 名。順番は対応 */
     private static final String[] SKILLS = {"str", "dex", "int", "def", "agi"};
     private static final String[] SKILL_BONUS_IDS = {"rawStrength", "rawDexterity", "rawIntelligence", "rawDefence", "rawAgility"};
 
@@ -55,7 +54,7 @@ public final class WeiSearchScreen extends Screen {
 
     private final @Nullable Screen parent;
 
-    // 選択状態（画面を作り直しても残す）
+    // 選択状態（rebuildWidgets 後も保持）
     private String type = "";
     private String subType = "";
     private final Set<String> tiers = new LinkedHashSet<>();
@@ -68,7 +67,7 @@ public final class WeiSearchScreen extends Screen {
     private final String[] reqMax = {"", "", "", "", ""};
     private final String[] bonusMin = {"", "", "", "", ""};
     private final String[] bonusMax = {"", "", "", "", ""};
-    /** ID の条件（一覧から選んで追加）。下限・上限が空なら「その ID が付いている」 */
+    /** ID の条件。範囲が空なら「その ID を持つ」 */
     static final class IdFilter {
         final String id;
         String min = "";
@@ -113,7 +112,7 @@ public final class WeiSearchScreen extends Screen {
         int fieldW = colW - 58;
         int top = 26;
 
-        // ---- 左の列
+        // ---- 左
         int y = top;
         label("wei.search.name", leftX, y);
         box(fieldX, y, fieldW, name, v -> name = v, Component.translatable("wei.search.name.hint"));
@@ -176,7 +175,6 @@ public final class WeiSearchScreen extends Screen {
             }).bounds(fieldX, y, fieldW, 18).build());
         }
 
-        // 必要スキル（左の列の下）
         int skillLabelW = 46;
         if (showsSkills()) {
             y += ROW + 2;
@@ -191,7 +189,7 @@ public final class WeiSearchScreen extends Screen {
             }
         }
 
-        // ---- 右の列: スキルボーナス / ID / メジャー ID
+        // ---- 右
         int ry = top;
         if (showsSkills()) {
             labels.add(new Label(Component.translatable("wei.search.skillBonus"), rightX, ry + 4, HEADER));
@@ -205,7 +203,6 @@ public final class WeiSearchScreen extends Screen {
             }
             ry += 6;
         }
-        // ID: 一覧から選んで追加。範囲が空なら「付いている」
         labels.add(new Label(Component.translatable("wei.search.ids"), rightX, ry + 4, HEADER));
         addRenderableWidget(Button.builder(Component.translatable("wei.search.addId"),
                         b -> minecraft.setScreen(new IdPickerScreen(this, knownIds, this::addIdFilter)))
@@ -235,7 +232,7 @@ public final class WeiSearchScreen extends Screen {
             updateSuggestions();
         }, null);
         ry += ROW;
-        // 入力中のメジャー ID の候補（押すと入る）
+        // 入力中のメジャー ID の候補
         suggestButtons.clear();
         int sw = (colW - 6) / 4;
         for (int i = 0; i < 4; i++) {
@@ -280,7 +277,7 @@ public final class WeiSearchScreen extends Screen {
         return b;
     }
 
-    /** 「下限 〜 上限」の 2 つの入力欄。allowNegative ならマイナスも入る（ID の値など） */
+    /** 下限・上限の入力欄 */
     private void rangeBoxes(int x, int y, Supplier<String> min, Consumer<String> setMin,
             Supplier<String> max, Consumer<String> setMax, boolean allowNegative) {
         String pattern = allowNegative ? "-?[0-9]*" : "[0-9]*";
@@ -311,7 +308,6 @@ public final class WeiSearchScreen extends Screen {
         EmiApi.setSearchText(query);
     }
 
-    /** 画面の選択を WEI の検索語にする */
     String buildQuery() {
         List<String> parts = new ArrayList<>();
         if (!name.isBlank()) parts.add(name.trim());
@@ -338,7 +334,7 @@ public final class WeiSearchScreen extends Screen {
         return String.join(" ", parts);
     }
 
-    /** min / max のどちらかだけでも書ける。逆なら入れ替える */
+    /** 片方だけなら以上・以下。逆順は入れ替える */
     private static void addRange(List<String> parts, String key, String min, String max) {
         boolean hasMin = isNumber(min);
         boolean hasMax = isNumber(max);
@@ -362,7 +358,7 @@ public final class WeiSearchScreen extends Screen {
         }
     }
 
-    /** いまの検索欄を読み、分かる語は画面に、分からない語は名前の欄に残す */
+    /** 現在の検索欄を読み込む。解釈できない語は名前欄に残す */
     private void readCurrentSearch() {
         String current;
         try {
@@ -413,7 +409,6 @@ public final class WeiSearchScreen extends Screen {
         name = String.join(" ", rest);
     }
 
-    /** 一覧で選んだ ID を条件に足す（同じものは足さない） */
     private void addIdFilter(String id) {
         for (IdFilter f : idFilters) if (f.id.equalsIgnoreCase(id)) return;
         idFilters.add(new IdFilter(id));
@@ -446,7 +441,6 @@ public final class WeiSearchScreen extends Screen {
         return false;
     }
 
-    /** 100-105 / >=100 / <=105 / 105 を [下限, 上限] に */
     private static String[] readRange(String value) {
         if (value.startsWith(">=")) return new String[] {value.substring(2), ""};
         if (value.startsWith("<=")) return new String[] {"", value.substring(2)};
@@ -456,7 +450,7 @@ public final class WeiSearchScreen extends Screen {
         return new String[] {value, value};
     }
 
-    /** 候補の一覧は一覧（カタログ）が同じ間は使い回す */
+    /** 候補はカタログが同じ間は使い回す */
     private static WynnCatalog cachedFor;
     private static List<String> cachedIds = List.of();
     private static List<String> cachedMajorIds = List.of();

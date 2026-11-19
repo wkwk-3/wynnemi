@@ -5,23 +5,22 @@ import io.github.wkwk.wei.Wei;
 import io.github.wkwk.wei.WeiConfig;
 
 /**
- * Wynntils のデータと表示条件を見張り、必要なときだけカタログを作り直して EMI を再読み込みする。
+ * Wynntils のデータと表示条件を監視し、必要なときだけカタログを作り直して EMI を再読み込みする。
  *
  * <ul>
- *   <li><b>データ</b>（アイテム情報）が変わったら、カタログを作り直してから EMI を再読み込み。
- *       主なきっかけは Wynntils のダウンロード完了イベント。件数の確認は初回の取りこぼし防止の保険。</li>
- *   <li><b>表示条件</b>（設定・Wynncraft 接続状態）だけが変わったら、カタログは作り直さず EMI だけ再読み込み。</li>
- *   <li>両方が同時に変わっても、EMI の再読み込みは作り直しが終わった後の1回だけ。</li>
- *   <li>一部の種類の読み込みに失敗したら、間隔を広げながら上限回数まで作り直しを再試行する。
- *       その間も読めた分は表示する。</li>
- *   <li>作り直しは1ティックあたり数ミリ秒ずつ進め、ゲームが止まらないようにする。</li>
+ *   <li>データの変化: カタログを作り直してから EMI を再読み込み。
+ *       きっかけは Wynntils の取得完了イベント。件数の監視は取りこぼし対策。</li>
+ *   <li>表示条件（設定・接続状態）だけの変化: EMI だけ再読み込み。</li>
+ *   <li>両方が変わっても再読み込みは作り直し後の 1 回。</li>
+ *   <li>一部の種類が失敗したら間隔を広げて再試行する（読めた分は表示）。</li>
+ *   <li>作り直しは 1 ティック数ミリ秒ずつ進める。</li>
  * </ul>
  *
- * すべてクライアントスレッドで動く。
+ * クライアントスレッドで動く。
  */
 public final class WynnDataWatcher {
     private static final int CHECK_INTERVAL_TICKS = 20;
-    /** 件数の変化は、2回続けて同じ値になってから作り直す（ダウンロード途中で作らないため） */
+    /** 件数が 2 回続けて同じになってから作り直す（取得途中で作らないため） */
     private static final int STABLE_CHECKS_REQUIRED = 2;
     private static final long BUILD_BUDGET_NANOS = 4_000_000L;
     private static final long[] RETRY_DELAYS_MS = {5_000, 15_000, 60_000, 300_000};
@@ -34,7 +33,7 @@ public final class WynnDataWatcher {
     private static int stableChecks;
     private static boolean rebuildRequested;
     private static WynnCatalog.Build build;
-    // EMI の読み込みスレッドから読む（ロードゲート用）
+    // EMI の読み込みスレッドから読む
     private static volatile boolean buildInProgress;
     private static volatile boolean catalogBuiltOnce;
     private static String buildTargetSignature;
@@ -45,7 +44,7 @@ public final class WynnDataWatcher {
     private static volatile String appliedViewSignature = "";
     private static volatile boolean onWynncraft;
 
-    // 診断用（diag#3 / #5 / #9）
+    // diag#3 / #5 / #9
     private static String lastLoggedDataSignature;
     private static final StringBuilder emiReloadReasons = new StringBuilder();
     private static long buildStartNanos;
@@ -55,7 +54,7 @@ public final class WynnDataWatcher {
     private static int favoritesRevisionAtBuild = Integer.MIN_VALUE;
     private static int lastLoggedFavoritesRevision = Integer.MIN_VALUE;
 
-    // EMI（最後に EMI が読み込んだときに使ったカタログと表示条件）
+    // EMI が最後に登録に使ったカタログと表示条件
     private static boolean emiReloadPending;
     private static volatile boolean emiHasRegistered;
     private static volatile WynnCatalog registeredCatalog;
@@ -64,7 +63,6 @@ public final class WynnDataWatcher {
     private WynnDataWatcher() {}
 
     public static void tick() {
-        // 作り直しの途中なら少しずつ進める
         if (build != null) {
             stepBuild();
         }
@@ -74,9 +72,8 @@ public final class WynnDataWatcher {
             checkView();
         }
 
-        // EMI の再読み込みは、作り直しが終わってから1回だけ
-        // EMI が読み込み中なら判断を保留する。ロードゲートで一覧の完成を待っているので、
-        // 読み込みが終われば最新の一覧を持っている（重ねて再読み込みしない）
+        // 再読み込みは作り直し完了後に 1 回。EMI の読み込み中は保留
+        // （ロードゲートで一覧の完成を待つため、読み込み後は最新）
         boolean emiLoading = false;
         try {
             emiLoading = dev.emi.emi.runtime.EmiReloadManager.getStatus() == 1;
@@ -84,8 +81,7 @@ public final class WynnDataWatcher {
         }
         if (emiReloadPending && build == null && !emiLoading) {
             emiReloadPending = false;
-            // EMI がまだ読み込んでいない、または EMI 自身の再読み込み（ワールド参加時など）で
-            // すでに最新の内容を拾っていれば、重ねて再読み込みしない
+            // 未読み込み、または EMI 自身の読み込みで最新を拾っていれば再読み込みしない
             boolean catalogStale = registeredCatalog != WynnCatalog.current();
             boolean viewStale = !appliedViewSignature.equals(registeredViewSignature);
             boolean stale = catalogStale || viewStale;
@@ -109,7 +105,6 @@ public final class WynnDataWatcher {
     private static void checkData() {
         String data = WynnCatalog.computeDataSignature();
         if (!data.equals(lastLoggedDataSignature)) {
-            // diag#3
             Diag.log(3, "Data signature changed: '{}' -> '{}'", lastLoggedDataSignature, data);
             lastLoggedDataSignature = data;
         }
@@ -125,13 +120,13 @@ public final class WynnDataWatcher {
 
         if (build != null) return;
         if (settled) {
-            // データ自体が変わったら、失敗回数は数え直す
+            // データが変われば失敗回数をリセット
             failedAttempts = 0;
             retryAtMillis = -1;
         }
         if (rebuildRequested || settled || retryDue) {
-            // Wynntils がデータを受け取った直後は、ガイド用アイテムの説明文が空で返ってくることがある（実機ログで先頭 80 件）。
-            // 装備 1 件で説明文が作れるようになるまで作り始めない（最大 30 秒。過ぎたら作る）
+            // 受信直後は Wynntils のガイド用アイテムの説明文が空になることがある。
+            // 装備 1 件で説明文が作れるまで待つ（最大 30 秒）
             if (!WynnCatalog.tooltipsReady()) {
                 if (tooltipWaitSince < 0) {
                     tooltipWaitSince = System.currentTimeMillis();
@@ -171,7 +166,7 @@ public final class WynnDataWatcher {
         emiReloadReasons.append(reason);
     }
 
-    /** diag#9: 説明文は構築時のまま。Wynntils のお気に入りが変わったら、星などが古くなっている */
+    /** diag#9: Wynntils のお気に入りが変わると、構築時の説明文の星が古くなる */
     private static void checkFavoritesRevision() {
         if (!Diag.enabled()) return;
         try {
@@ -208,11 +203,11 @@ public final class WynnDataWatcher {
             double stepMs = Diag.ms(stepStart);
             if (stepMs > buildMaxStepMs) buildMaxStepMs = stepMs;
             if (stepMs > 20) {
-                // diag#3/#4: 1 ティックの作業が予定（4ms）を大きく超えた＝カクつきの可能性
+                // diag#3/#4: 予算超過（カクつきの可能性）
                 Diag.warn(3, "Catalog build step took {}ms (budget 4ms)", stepMs);
             }
         } catch (Throwable t) {
-            // 個々の作業は Build 内で捕まえているので、ここに来るのは想定外
+            // 個々の作業の例外は Build 内で処理済み。ここは想定外
             Wei.LOGGER.error("Wynncraft item catalog build crashed", t);
             build = null;
             buildInProgress = false;
@@ -227,7 +222,7 @@ public final class WynnDataWatcher {
         build = null;
         catalogBuiltOnce = true;
         buildInProgress = false;
-        // 不完全でも記録する（件数の監視で毎秒作り直さないため）。不完全なら下で再試行を予約する
+        // 不完全でも記録する（毎秒作り直さないため）。不完全なら再試行を予約
         builtDataSignature = buildTargetSignature;
         addEmiReloadReason("catalogBuilt");
         emiReloadPending = true;
@@ -257,13 +252,12 @@ public final class WynnDataWatcher {
             return;
         }
         long delay = RETRY_DELAYS_MS[failedAttempts++];
-        // diag#5: 再試行のたびに全体の作り直しと EMI の再読み込みが起きる
         Diag.warn(5, "Retry #{} scheduled in {}s (each retry rebuilds everything and reloads EMI)", failedAttempts, delay / 1000);
         retryAtMillis = System.currentTimeMillis() + delay;
         Wei.LOGGER.info("Retrying the Wynncraft item catalog in {} s", delay / 1000);
     }
 
-    /** Wynntils のダウンロード完了（または一部失敗）時。次の確認で作り直す。 */
+    /** Wynntils の取得完了（一部失敗を含む）。次の確認で作り直す。 */
     public static void onWynntilsDataDownloaded() {
         Diag.log(3, "Wynntils download event received -> rebuild requested");
         failedAttempts = 0;
@@ -276,21 +270,20 @@ public final class WynnDataWatcher {
         rebuildRequested = true;
     }
 
-    /** /wei reload（設定を読み直した後）。カタログは作り直さず EMI だけ再読み込み。 */
+    /** /wei reload。EMI だけ再読み込み。 */
     public static void requestEmiReload() {
         addEmiReloadReason("command");
         boolean wynn = WynnCatalog.isOnWynncraft();
         onWynncraft = wynn;
         appliedViewSignature = wynn + "|" + WeiConfig.currentSignature();
         emiReloadPending = true;
-        // 設定が同じでも、明示的に頼まれたら必ず再読み込みする
+        // 設定が同じでも再読み込みする
         registeredViewSignature = null;
     }
 
     /**
-     * EMI のロードゲート用（EMI の読み込みスレッドから呼ばれる）。
-     * 一覧を一度作り終えていて、作り直しの途中でなければ true。
-     * これが false の間に EMI が読み込むと、WEI のお気に入りや履歴が読めずに外れてしまう（diag#1）。
+     * ロードゲート（EMI の読み込みスレッドから呼ばれる）。
+     * 一度作り終えていて、作り直し中でなければ true。
      */
     public static boolean isCatalogReadyForEmi() {
         return catalogBuiltOnce && !buildInProgress;
@@ -300,12 +293,12 @@ public final class WynnDataWatcher {
         return onWynncraft;
     }
 
-    /** 表示条件の指紋（EMI のプラグインが読み込み時に記録する） */
+    /** 表示条件の指紋 */
     public static String viewSignature() {
         return appliedViewSignature;
     }
 
-    /** EMI のプラグインが登録に使った内容を記録する（EMI のスレッドから呼ばれる） */
+    /** 登録に使った内容を記録する（EMI のスレッドから呼ばれる） */
     public static void markEmiRegistered(WynnCatalog catalog, String viewSignature) {
         Diag.log(3, "EMI registered WEI: catalog={} items (current={}), view='{}' (applied='{}'), thread={}",
                 catalog.entries().size(), catalog == WynnCatalog.current(), viewSignature, appliedViewSignature, Diag.thread());

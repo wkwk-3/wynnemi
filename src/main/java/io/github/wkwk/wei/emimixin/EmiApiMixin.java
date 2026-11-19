@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** R/U のレシピ画面を WEI が差し替えられるようにする（手持ちの未鑑定ボックス） */
+/** R/U のレシピ画面の差し替え口（手持ちの未鑑定ボックス用）。 */
 @Mixin(value = EmiApi.class, remap = false)
 public abstract class EmiApiMixin {
     @Invoker("setPages")

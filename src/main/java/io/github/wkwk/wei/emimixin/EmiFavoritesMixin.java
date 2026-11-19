@@ -20,10 +20,10 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** 読めなかったお気に入りを保持し、保存時に書き戻す（EMI は捨てる）。 */
+/** 読めなかったお気に入りを保持し、保存時に書き戻す（EMI は破棄する）。 */
 @Mixin(value = EmiFavorites.class, remap = false)
 public abstract class EmiFavoritesMixin {
-    /** load 中だけ使う: stack 要素 → お気に入り 1 件の JSON */
+    /** load 中のみ: stack 要素 → お気に入り 1 件の JSON */
     @Unique
     private static Map<JsonElement, JsonObject> wei$owners = Map.of();
     @Unique

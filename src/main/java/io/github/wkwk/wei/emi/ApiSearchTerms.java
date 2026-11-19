@@ -10,11 +10,11 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 公式 API のアイテム検索（POST /v3/item/search）と同じキーで絞り込む。
+ * 公式 API のアイテム検索（POST /v3/item/search）と同じキーでの絞り込み。
  * https://docs.wynncraft.com/modules/item-recipe/search-items
  *
  * <pre>
- *   type:weapon        type:wand（武器種などの詳細も type で指定できる）
+ *   type:weapon        type:wand（詳細な種類も可）
  *   tier:mythic        tier:tier_3（素材は 0〜3 / tier_0〜tier_3）
  *   attackSpeed:superFast
  *   levelRange:100-105 levelRange:&gt;=100 levelRange:105
@@ -23,12 +23,12 @@ import org.jetbrains.annotations.Nullable;
  *   majorIds:hurricanesEye
  * </pre>
  *
- * WEI だけの書き方（公式 API には無い）:
- *   strReq:20-50 dexReq:>=40 intReq:<=10 defReq:0 agiReq:30   必要スキルの範囲（必要が無いものは 0）
- *   id.rawStrength:5-15  id.walkSpeed:>=20                    ID が取りうる最大値の範囲
+ * WEI 独自:
+ *   strReq:20-50 dexReq:>=40 intReq:<=10 defReq:0 agiReq:30   必要スキル（不要は 0）
+ *   id.rawStrength:5-15  id.walkSpeed:>=20                    ID の最大値の範囲
  *
- * 値はカンマ区切りで「または」（API と同じく一覧を渡せる）。違うキー・同じキーの複数指定は「かつ」。
- * 大文字小文字と記号は区別しない。identifications を指定すると、サイトと同じく最初の ID の値が大きい順に並ぶ。
+ * カンマ区切りは OR、語どうしは AND。大小文字と記号は区別しない。
+ * identifications を指定すると最初の ID の降順に並ぶ（公式サイトと同じ）。
  */
 final class ApiSearchTerms {
     private static final Set<String> KEYS = Set.of(
@@ -46,7 +46,7 @@ final class ApiSearchTerms {
         return KEYS.contains(k) || SKILL_KEYS.contains(k) || (k.startsWith("id.") && k.length() > 3);
     }
 
-    /** 範囲で指定するキー（値をそのまま残す） */
+    /** 範囲指定のキー（値を正規化しない） */
     private static boolean isRangeKey(String k) {
         return k.equals("levelrange") || SKILL_KEYS.contains(k) || k.startsWith("id.");
     }
@@ -66,7 +66,7 @@ final class ApiSearchTerms {
         return terms.isEmpty();
     }
 
-    /** 最初に指定した ID（並び替えに使う）。無ければ null */
+    /** 並び替えに使う最初の ID。無ければ null。 */
     @Nullable String firstIdentification() {
         return firstIdentification;
     }
@@ -87,7 +87,7 @@ final class ApiSearchTerms {
 
     private static boolean matchesOne(String key, String value, WynnCatalog.ApiFacets f) {
         if (SKILL_KEYS.contains(key)) {
-            // 必要スキル。必要が無いものは 0 として扱う（装備以外は対象外）
+            // 不要は 0。装備以外は対象外
             if (!"weapon".equals(f.type()) && !"armour".equals(f.type()) && !"accessory".equals(f.type())) return false;
             return inRange(f.skillRequirements().getOrDefault(key.substring(0, 3), 0), value);
         }
@@ -97,7 +97,7 @@ final class ApiSearchTerms {
         }
         return switch (key) {
             case "type" -> value.equals(compact(f.type())) || value.equals(compact(f.subType()))
-                    // API の表記揺れ（armor / armour）
+                    // armor / armour
                     || (value.equals("armor") && "armour".equals(f.type()));
             case "tier" -> {
                 String tier = compact(f.tier());
@@ -112,7 +112,7 @@ final class ApiSearchTerms {
         };
     }
 
-    /** ID の API 名（rawStrength など）は小文字で持っているので、記号を除いて比べる */
+    /** ID 名は記号を除いて比較する */
     static boolean hasIdentification(Map<String, Integer> ids, String compactName) {
         return identificationValue(ids, compactName) != null;
     }
@@ -134,7 +134,7 @@ final class ApiSearchTerms {
             if (spec.startsWith(">")) return level > Integer.parseInt(spec.substring(1));
             if (spec.startsWith("<")) return level < Integer.parseInt(spec.substring(1));
             int dash = spec.indexOf('-', 1);
-            // 「-20--5」のように負の数同士の範囲
+            // 負の数どうし（-20--5）
             while (dash > 0 && spec.charAt(dash - 1) == '-') dash = spec.indexOf('-', dash + 1);
             if (dash > 0) {
                 int low = Integer.parseInt(spec.substring(0, dash));

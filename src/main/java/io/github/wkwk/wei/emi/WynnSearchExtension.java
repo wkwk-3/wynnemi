@@ -22,24 +22,24 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * EMI の検索欄で、2 種類の {@code key:value} を使えるようにする。
+ * EMI の検索欄で 2 種類の {@code key:value} を使えるようにする。
  *
  * <ul>
  *   <li><b>公式 API と同じキー</b>（{@link ApiSearchTerms}）:
  *       {@code type:weapon tier:mythic attackSpeed:superFast levelRange:100-105 professions:cooking
  *       identifications:rawStrength majorIds:...}</li>
  *   <li><b>Wynntils のアイテムフィルター</b>: {@code rarity:mythic gearType:wand rawStrength:>10 sort:rawStrength}
- *       など（ID の値の範囲や並び替えはこちら）</li>
+ *       など</li>
  * </ul>
- * 同じ名前のキー（tier・attackSpeed）は公式 API の意味を優先する。残りの語は今までどおり EMI が検索する。
+ * 同名のキー（tier・attackSpeed）は公式 API を優先。残りの語は EMI が検索する。頭に - で除外。
  *
- * <p>条件の評価は {@link #prepare} の中（クライアントスレッド）で済ませ、EMI の検索スレッドでは結果を読むだけにする。
+ * <p>評価は {@link #prepare}（クライアントスレッド）で済ませ、検索スレッドは結果を読むだけ。
  */
 public final class WynnSearchExtension implements EmiSearchExtension {
     private static final String SORT_KEY = "sort";
 
     private @Nullable Set<String> knownKeys;
-    // 同じ条件で何度も評価しないためのキャッシュ（入力のたびに検索が走るため）
+    // 直前の条件の評価結果
     private @Nullable String cachedQuery;
     private @Nullable WynnCatalog cachedCatalog;
     private @Nullable Result cachedResult;
@@ -53,7 +53,6 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         List<String> apiTokens = new ArrayList<>();
         List<String> wynnTokens = new ArrayList<>();
         List<String> otherTokens = new ArrayList<>();
-        // 頭に - を付けた条件は「当てはまるものを除く」
         List<String> negatedApiTokens = new ArrayList<>();
         List<String> negatedWynnTokens = new ArrayList<>();
         for (String token : query.trim().split("\\s+")) {
@@ -98,7 +97,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         };
     }
 
-    /** EMI の書き方（@ # $ - " /）で始まる語は EMI に任せる */
+    /** EMI の記法（@ # $ - " /）で始まる語は EMI に任せる */
     private static @Nullable String keyOf(String token) {
         int colon = token.indexOf(':');
         if (colon <= 0 || colon == token.length() - 1) return null;
@@ -130,7 +129,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
                 }
             } catch (Throwable t) {
                 Wei.LOGGER.warn("Could not read Wynntils item filter keys", t);
-                // diag#6: 空のまま覚えると、再起動まで Wynntils の書き方が効かない
+                // 空のまま保持すると再起動まで Wynntils 形式が効かない（diag#6）
                 Diag.warn(6, "Wynntils filter keys FAILED to load; cached {} keys (only 'sort') until restart", keys.size());
             }
             Diag.log(6, "Wynntils filter keys loaded: {} keys (thread={})", keys.size(), Diag.thread());
@@ -149,7 +148,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
         long diagStart = System.nanoTime();
         double diagWynntilsMs = 0;
 
-        // 1. 公式 API と同じキーで絞り込む
+        // 1. 公式 API 形式
         ApiSearchTerms api = new ApiSearchTerms();
         for (String token : apiQuery.isEmpty() ? new String[0] : apiQuery.split(" ")) {
             int colon = token.indexOf(':');
@@ -160,7 +159,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
             if (api.isEmpty() || api.matches(entry.facets())) candidates.add(entry);
         }
 
-        // 2. Wynntils のフィルターで絞り込む（並び替えもこちら）
+        // 2. Wynntils 形式（並び替えを含む）
         List<WynnCatalog.Entry> ordered = candidates;
         boolean sorted = false;
         if (!wynnQuery.isEmpty()) {
@@ -190,7 +189,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
             }
         }
 
-        // 2b. 頭に - を付けた条件に当てはまるものを除く（条件ごとに判定し、どれかに当てはまれば除外）
+        // 3. 否定条件（どれかに当てはまれば除外）
         if (!negatedApi.isEmpty() || !negatedWynn.isEmpty()) {
             Set<String> excluded = excludedKeys(catalog, negatedApi, negatedWynn);
             List<WynnCatalog.Entry> kept = new ArrayList<>(ordered.size());
@@ -202,7 +201,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
             ordered = kept;
         }
 
-        // 3. Wynntils の sort: が無く identifications を指定していれば、公式サイトと同じく最初の ID の値が大きい順
+        // 4. sort: が無く identifications があれば、公式サイトと同じく最初の ID の降順
         String firstId = api.firstIdentification();
         if (!sorted && firstId != null) {
             List<WynnCatalog.Entry> byId = new ArrayList<>(ordered);
@@ -219,7 +218,7 @@ public final class WynnSearchExtension implements EmiSearchExtension {
             rank.putIfAbsent(ordered.get(i).key(), i);
         }
         Result result = new Result(Map.copyOf(rank), sorted);
-        // diag#4: クライアントスレッドでの評価時間（入力のたびに走る）
+        // diag#4: 評価時間
         double totalMs = Diag.ms(diagStart);
         if (totalMs > 16) {
             Diag.warn(4, "Search evaluation took {}ms (> 1 frame) api='{}' wynntils='{}' candidates={} matched={} (wynntils filter {}ms)",

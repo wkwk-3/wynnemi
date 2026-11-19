@@ -23,8 +23,8 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Wynntils のデータを、公式 API のアイテム検索と同じ分類・表記（{@link WynnCatalog.ApiFacets}）に変換する。
- * 値の一覧は API の {@code /v3/item/metadata} の filters に合わせている。
+ * Wynntils のデータを公式 API のアイテム検索と同じ分類・表記（{@link WynnCatalog.ApiFacets}）に変換する。
+ * 値は API の {@code /v3/item/metadata} の filters に準拠。
  */
 final class ApiFacetsFactory {
     private ApiFacetsFactory() {}
@@ -53,7 +53,7 @@ final class ApiFacetsFactory {
                 skillRequirements(g));
     }
 
-    /** 必要スキル。Wynntils の requirements().skills() は (Skill, 値) の一覧 */
+    /** 必要スキル。0 は含めない。 */
     private static Map<String, Integer> skillRequirements(GearInfo g) {
         Map<String, Integer> out = new HashMap<>();
         try {
@@ -128,7 +128,7 @@ final class ApiFacetsFactory {
         return Set.copyOf(set);
     }
 
-    /** WEAPON_TOME → weaponTome（API の表記） */
+    /** WEAPON_TOME → weaponTome（API 表記） */
     private static String camel(String enumName) {
         StringBuilder sb = new StringBuilder();
         for (String word : enumName.toLowerCase(Locale.ROOT).split("_")) {

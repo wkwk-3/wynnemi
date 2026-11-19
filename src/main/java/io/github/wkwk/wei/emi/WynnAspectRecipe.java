@@ -12,20 +12,20 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /**
- * アスペクトのティア：1行に1ティア。左にそのティアのアスペクト（カーソルを合わせると、そのティアの効果）、
- * 右に「ティア 2：累計 5 個」。
+ * アスペクトのティア。1 行 1 ティアで、左にそのティアのアスペクト（ツールチップが効果）、
+ * 右に累計の必要数。
  */
 final class WynnAspectRecipe implements EmiRecipe {
     private static final int WIDTH = 140;
     private static final int ROW = 20;
-    /** 1.21.6 以降は文字色に不透明度（先頭の FF）が要る。無いと透明で何も見えない */
+    /** 1.21.6 以降は文字色にアルファが必須（無いと透明） */
     private static final int TEXT_COLOR = 0xFF404040;
 
     private final EmiRecipeCategory category;
     private final Identifier id;
     private final WynnEmiStack aspect;
     private final List<WynnCatalog.AspectTier> tiers;
-    /** ティアごとの見た目と説明文。レシピ画面を初めて開いたとき（描画スレッド）に作る */
+    /** ティアごとのスタック。初回表示時に描画スレッドで作る */
     private List<EmiStack> tierStacks;
     private final List<Component> titles = new ArrayList<>();
 
@@ -43,7 +43,7 @@ final class WynnAspectRecipe implements EmiRecipe {
         if (tierStacks == null) {
             List<EmiStack> out = new ArrayList<>();
             for (WynnCatalog.AspectTier tier : tiers) {
-                // キーは一覧のアスペクトと同じ（お気に入りなどは1件のアスペクトとして扱われる）。見た目と説明文だけそのティア
+                // キーは一覧と同じ（お気に入りは 1 件扱い）。見た目と説明文だけティア別
                 var stack = tier.createStack();
                 List<Component> tooltip = WynnCatalog.tooltipLines(stack);
                 if (tooltip.size() <= 1) tooltip = List.of(aspect.getName());

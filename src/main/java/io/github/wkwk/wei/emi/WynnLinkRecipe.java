@@ -15,11 +15,11 @@ import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 「A → B」を表示するだけのレシピ。入手方法（入手元 → アイテム）、製作の使い道（素材 → 職業）、
+ * 「A → B」を表示するだけのレシピ。入手（入手元 → アイテム）、製作（素材 → 職業）、
  * 採集（職業 → 素材）、必要クエスト（クエスト → 装備）、未鑑定ボックス（ボックス → 候補）に使う。
  *
- * <p>EMI は「R = 出力に含むレシピ」「U = 入力に含むレシピ」で引くので、見た目の向きとは別に
- * 引き方の向きを指定できるようにしている（ボックスで R を押したら中身の候補を出したい、など）。
+ * <p>EMI は R で出力、U で入力から引く。見た目の向きと引く向きを別に指定できる
+ * （例: ボックスの R で中身の候補を出す）。
  */
 final class WynnLinkRecipe implements EmiRecipe {
     private static final int WIDTH = 134;
@@ -33,7 +33,6 @@ final class WynnLinkRecipe implements EmiRecipe {
     private final boolean lookupReversed;
     private final int sortKey;
 
-    /** 左 → 右。R（右で引く）・U（左で引く） */
     WynnLinkRecipe(EmiRecipeCategory category, Identifier id, EmiStack left, EmiStack right, @Nullable Component caption) {
         this(category, id, left, right, caption, false, 0);
     }
@@ -87,7 +86,7 @@ final class WynnLinkRecipe implements EmiRecipe {
         return caption == null ? 18 : 30;
     }
 
-    /** 入力が仮想アイテムなので、レシピツリー（必要素材の計算）には出さない */
+    /** 入力が仮想アイテムのためレシピツリーには出さない */
     @Override
     public boolean supportsRecipeTree() {
         return false;

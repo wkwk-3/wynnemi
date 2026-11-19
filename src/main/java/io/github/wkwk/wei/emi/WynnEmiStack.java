@@ -13,21 +13,20 @@ import dev.emi.emi.api.stack.EmiStack;
 import io.github.wkwk.wei.util.Names;
 
 /**
- * Wynncraft のアイテム（または「入手元」「職業」などの仮想アイテム）を表す EMI のスタック。
+ * Wynncraft のアイテム、または入手元・職業などの仮想アイテムのスタック。
  *
- * <p>EMI 標準の {@code EmiStack.of(ItemStack)} はアイテムを素の ItemStack にコピーするため、
- * Wynntils が getTooltipLines() のオーバーライドで作っている説明文が消える。ここでは元の
- * ItemStack（Wynntils の Guide*ItemStack）をそのまま持ち、説明文もそこから取る。
+ * <p>{@code EmiStack.of(ItemStack)} は素の ItemStack にコピーし、Wynntils が getTooltipLines() の
+ * オーバーライドで作る説明文が消える。ここでは元の Guide*ItemStack をそのまま持つ。
  *
- * <p>また EMI は「アイテムの種類」で同一判定するため、見た目のベースが同じ（例: 全部ポーション）
- * Wynncraft のアイテムが1つにまとめられてしまう。キーを Wynncraft のアイテムごとに固有にして防ぐ。
+ * <p>EMI はアイテムの種類で同一判定するため、ベースが同じ（例: ポーション）アイテムがまとまる。
+ * キーをアイテムごとに固有にして防ぐ。
  */
 public final class WynnEmiStack extends EmiStack {
     private final String key;
     private final Identifier id;
     private final ItemStack stack;
     private final Component name;
-    /** 不変の説明文。EMI は別スレッドの検索インデックス作成でも呼ぶので、Wynntils には問い合わせない */
+    /** 構築時に取った説明文。EMI は別スレッドの索引作成でも読むため Wynntils には問い合わせない */
     private final List<Component> tooltip;
 
     private WynnEmiStack(String key, ItemStack stack, Component name, List<Component> tooltip) {
@@ -38,12 +37,11 @@ public final class WynnEmiStack extends EmiStack {
         this.tooltip = tooltip;
     }
 
-    /** Wynntils のガイド用アイテム。説明文はカタログ構築時に取ったもの。 */
     public static WynnEmiStack ofItem(String key, ItemStack stack, Component name, List<Component> tooltip) {
         return new WynnEmiStack(key, stack, name, List.copyOf(tooltip));
     }
 
-    /** 入手元や職業などの仮想アイテム。説明文は name + extraTooltip。 */
+    /** 仮想アイテム。説明文は name + extraTooltip。 */
     public static WynnEmiStack ofVirtual(String key, ItemStack icon, Component name, List<Component> extraTooltip) {
         List<Component> lines = new ArrayList<>(1 + extraTooltip.size());
         lines.add(name);
@@ -89,7 +87,7 @@ public final class WynnEmiStack extends EmiStack {
         return id;
     }
 
-    /** 元の ItemStack を返す（コピーすると Wynntils のサブクラスが失われる）。 */
+    /** コピーしない（Wynntils のサブクラスが失われる） */
     @Override
     public ItemStack getItemStack() {
         return stack;
@@ -122,7 +120,7 @@ public final class WynnEmiStack extends EmiStack {
         }
     }
 
-    /** Identifier に使えない文字を置き換えると別のキーが同じになり得るので、元のキーのハッシュを足す。 */
+    /** 文字の置き換えで衝突しないよう元のキーのハッシュを足す */
     private static String toPath(String key) {
         return Names.idPath(key) + "_" + Integer.toHexString(key.hashCode());
     }

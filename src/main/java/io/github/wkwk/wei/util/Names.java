@@ -4,12 +4,11 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 
-/** 名前・ID の整形（正規表現は使い回す） */
+/** 名前・ID の整形。 */
 public final class Names {
     /**
-     * Wynncraft のフォントのアイコン（私用領域の文字）。U+E000〜U+F8FF だけでなく、
-     * U+F0000〜/U+100000〜 の補助私用領域（例: U+100002）も含む。
-     * Java の正規表現はコードポイント単位で照合するので、サロゲートの範囲指定では補助私用領域を消せない（実機ログで確認）。
+     * Wynncraft のフォントのアイコン（私用領域）。補助私用領域（例: U+100002）も含む。
+     * 正規表現はコードポイント単位で照合するため、サロゲートの範囲指定では消せない。
      */
     private static final Pattern PRIVATE_USE = Pattern.compile("\\p{Co}");
     public static final Pattern WHITESPACE = Pattern.compile("\\s+");
@@ -18,19 +17,18 @@ public final class Names {
 
     private Names() {}
 
-    /** 色コードとアイコン文字を除き、空白をまとめる */
     public static String strip(String s) {
         String stripped = ChatFormatting.stripFormatting(s);
         if (stripped == null) return "";
         return WHITESPACE.matcher(PRIVATE_USE.matcher(stripped).replaceAll("")).replaceAll(" ").trim();
     }
 
-    /** 表記揺れ（大文字小文字・空白・記号・色コード）をまとめるためのキー */
+    /** 表記揺れ（大小文字・空白・記号・色コード）を吸収した照合キー */
     public static String normalize(String name) {
         return NON_ALNUM.matcher(strip(name).toLowerCase(Locale.ROOT)).replaceAll(" ").trim();
     }
 
-    /** 英数字だけの小文字（"Hurricane's Eye" → "hurricaneseye"）。表記の違う名前を突き合わせるため */
+    /** 英数字だけの小文字（"Hurricane's Eye" → "hurricaneseye"） */
     public static String compact(String s) {
         StringBuilder sb = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {
@@ -51,7 +49,6 @@ public final class Names {
         return sb.toString();
     }
 
-    /** Identifier のパスに使えない文字を置き換える */
     public static String idPath(String s) {
         return ID_UNSAFE.matcher(s.toLowerCase(Locale.ROOT)).replaceAll("_");
     }

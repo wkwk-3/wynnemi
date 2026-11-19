@@ -81,19 +81,18 @@ public final class Wei implements ClientModInitializer {
         WeiConfig.load();
         StartupDiag.logEnvironment();
 
-        // EMI の検索欄で Wynntils のフィルター（level:100-105 rarity:mythic sort:... など）を使えるようにする（フォークの API）
+        // WEI の検索語（公式 API 形式・Wynntils 形式）
         EmiHooks.registerSearchExtension(new WynnSearchExtension());
-        // 一覧ができるまで EMI の読み込みを待ってもらう（空の一覧で読み込むと、お気に入りや履歴が外れる）
+        // 一覧の完成まで EMI の読み込みを待たせる（空の一覧で読むとお気に入り・履歴が外れる）
         EmiHooks.registerLoadGate("WEI item list", WynnDataWatcher::isCatalogReadyForEmi);
 
-        // Wynntils のデータは起動後に非同期でダウンロードされる。ダウンロード完了イベント（主）と
-        // 件数の監視（保険）で、揃ったら・変わったらカタログを作り直して EMI を再読み込みする
+        // Wynntils のデータは起動後に非同期で届く。取得完了イベントと件数の監視で一覧を作り直す
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             WynntilsDownloadListener.registerOnce();
             io.github.wkwk.wei.loot.LootHighlight.registerOnce();
             WynnDataWatcher.tick();
             WynnFavoritesSync.tick();
-            // /wei search はチャットが閉じたあとに開く
+            // /wei search: チャットが閉じた後に開く
             if (openSearchNextTick) {
                 openSearchNextTick = false;
                 client.setScreen(new WeiSearchScreen(client.screen));
@@ -102,14 +101,14 @@ public final class Wei implements ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> dispatcher.register(
                 ClientCommandManager.literal("wei")
-                        // 設定を読み直して EMI だけ再読み込み（アイテム一覧は作り直さない）
+                        // 設定を読み直し EMI だけ再読み込み
                         .then(ClientCommandManager.literal("reload").executes(ctx -> {
                             WeiConfig.load();
                             WynnDataWatcher.requestEmiReload();
                             ctx.getSource().sendFeedback(Component.translatable("wei.command.reload"));
                             return 1;
                         }))
-                        // 高額アイテムの通知: /wei loot on|off, sound on|off, threshold <LE>, price <種類>
+                        // /wei loot on|off | sound on|off | threshold <LE> | price <種類>
                         .then(ClientCommandManager.literal("loot")
                                 .executes(ctx -> lootStatus(ctx.getSource()))
                                 .then(ClientCommandManager.literal("on").executes(ctx -> setLoot(ctx.getSource(), c -> c.lootHighlightEnabled = true)))
@@ -158,19 +157,17 @@ public final class Wei implements ClientModInitializer {
                                                         com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(ctx, "le")))))
                                 .then(priceLiteral("lowest")).then(priceLiteral("average")).then(priceLiteral("average80"))
                                 .then(priceLiteral("median")).then(priceLiteral("highest")))
-                        // 条件設定の画面を開く
                         .then(ClientCommandManager.literal("search").executes(ctx -> {
                             openSearchNextTick = true;
                             return 1;
                         }))
-                        // Wynntils のデータからアイテム一覧を作り直す
                         .then(ClientCommandManager.literal("rebuild").executes(ctx -> {
                             WynnDataWatcher.requestRebuild();
                             ctx.getSource().sendFeedback(Component.translatable("wei.command.rebuild"));
                             return 1;
                         }))));
 
-        // EMI の検索欄の右に、Wynncraft 用の条件検索を開く虫眼鏡ボタンを置く
+        // EMI の検索欄の横に条件検索のボタン
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>) || !WynnCatalog.isOnWynncraftNow()) return;
             Button button = Button.builder(Component.empty(), b -> client.setScreen(new WeiSearchScreen(screen)))
@@ -178,14 +175,13 @@ public final class Wei implements ClientModInitializer {
                     .tooltip(Tooltip.create(Component.translatable("wei.search.title")))
                     .build();
             Screens.getButtons(screen).add(button);
-            // EMI は検索欄の位置を描画のたびに決めるので、こちらも毎回合わせる
+            // 検索欄の位置は EMI が描画ごとに決めるため毎回追従する
             ScreenEvents.beforeRender(screen).register((s, g, mx, my, delta) -> {
                 var search = dev.emi.emi.screen.EmiScreenManager.search;
-                // EMI の検索欄が実際に出ているときだけ（EMI を無効にしている・検索欄を消している画面には出さない）
                 button.visible = search != null && search.isVisible() && search.getWidth() > 0
                         && !dev.emi.emi.screen.EmiScreenManager.isDisabled();
                 if (button.visible) {
-                    // 右に置く。右端の帯に検索欄があって右に入らないときは左に置く
+                    // 右に入らなければ左
                     int right = search.getX() + search.getWidth() + 2;
                     button.setX(right + button.getWidth() <= s.width ? right : search.getX() - button.getWidth() - 2);
                     button.setY(search.getY());

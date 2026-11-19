@@ -11,8 +11,8 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
 /**
- * 高額通知の「種類とレア度ごとの基準」を追加・削除する画面。
- * 上に追加の行（種類・レア度・金額・追加）、下に登録済みの一覧（×で削除）。
+ * 高額通知の種類・レア度別の基準の編集画面。
+ * 上が追加行、下が登録済みの一覧。
  */
 final class LootRulesScreen extends Screen {
     private static final int ROW = 22;
@@ -49,7 +49,6 @@ final class LootRulesScreen extends Screen {
         int left = width / 2 - 160;
         int y = 34;
 
-        // 追加の行
         addRenderableWidget(Button.builder(typeLabel(type), b -> {
                     type = next(types(), type);
                     rarity = "any";
@@ -76,7 +75,6 @@ final class LootRulesScreen extends Screen {
                 .bounds(left + 290, y, 30, 20)
                 .build());
 
-        // 登録済みの一覧
         int listTop = y + 34;
         int perPage = Math.max(1, (height - listTop - 40) / ROW);
         List<WeiConfig.LootRule> rules = config.lootRules;
@@ -112,7 +110,7 @@ final class LootRulesScreen extends Screen {
                 .build());
     }
 
-    /** 今の選択で追加する。off なら「通知しない」 */
+    /** off なら「通知しない」で登録 */
     private void add(boolean off) {
         double le;
         if (off) {
@@ -124,7 +122,7 @@ final class LootRulesScreen extends Screen {
                 return;
             }
         }
-        // 同じ種類・レア度があれば置き換える
+        // 同じ組み合わせは置き換え
         config.lootRules.removeIf(r -> r.type.equalsIgnoreCase(type) && r.rarity.equalsIgnoreCase(rarity));
         config.lootRules.add(new WeiConfig.LootRule(type, rarity, le));
         WeiConfig.save();

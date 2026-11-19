@@ -10,8 +10,8 @@ import java.util.List;
 import net.minecraft.resources.Identifier;
 
 /**
- * セット装備：左にセット（説明文にボーナス）、右にメンバーを並べる。
- * メンバーで R → 所属するセット、セットで U → このレシピ。
+ * セット装備。左にセット（説明文がボーナス）、右にメンバー。
+ * メンバーの R とセットの U でこのレシピに来る。
  */
 final class WynnSetRecipe implements EmiRecipe {
     private static final int WIDTH = 134;

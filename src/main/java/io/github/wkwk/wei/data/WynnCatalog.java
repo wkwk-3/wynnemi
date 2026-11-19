@@ -44,68 +44,63 @@ import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Wynntils のデータから作った、EMI に渡すための不変のスナップショット。
+ * Wynntils のデータから作る、EMI に渡す不変のスナップショット。
  *
- * <p>Guide*ItemStack の生成・説明文の取得・クエスト名の解決など Wynntils に触れる処理は、
- * すべてクライアントスレッドの {@link Build} で済ませる。EMI のプラグイン（別スレッド）は
- * このスナップショットを読むだけで、Wynntils のモデルには触れない。
+ * <p>Wynntils に触れる処理（Guide*ItemStack の生成・説明文・クエスト名）はすべてクライアントスレッドの
+ * {@link Build} で行う。EMI のプラグイン（別スレッド）はこれを読むだけ。
  */
 public final class WynnCatalog {
-    /** 入手元。表示名などは構築時に解決済み。 */
+    /** 入手元（構築時に解決済み） */
     public record ObtainSnapshot(
             ItemObtainType type,
-            /** 入手元アイテムとして独立させる名前。null なら種類だけ（Guild など） */
+            /** 独立した入手元アイテムの名前。null なら種類だけ（Guild など） */
             @Nullable String sourceName,
-            /** レシピ画面に出す元の名前 */
             @Nullable String caption) {}
 
-    /** 未鑑定ボックスの系統（装備の種類 × レアリティ）。中身の候補はこの系統と必要レベルで決まる */
+    /** 未鑑定ボックスの系統（装備の種類 × レアリティ） */
     public record BoxFamily(String key, Component displayName) {}
 
     /**
-     * 公式 API のアイテム検索（https://docs.wynncraft.com/modules/item-recipe/search-items）と同じ分類。
-     * 値は API の表記（小文字・camelCase）に揃え、検索の {@code type:} {@code tier:} などで使う。
+     * 公式 API のアイテム検索と同じ分類。値は API の表記（小文字・camelCase）。
      */
     public record ApiFacets(
             /** weapon / armour / accessory / tome / charm / tool / ingredient / material */
             @Nullable String type,
-            /** 武器種・防具部位・アクセサリー種・トーム種（weaponTome など）・ツール種（rod など） */
+            /** 武器種・防具部位・アクセサリー種・トーム種・ツール種 */
             @Nullable String subType,
             /** 装備: normal〜mythic、素材: tier_0〜tier_3 */
             @Nullable String tier,
             /** superSlow〜superFast */
             @Nullable String attackSpeed,
             int level,
-            /** 製作職業（素材）または採集職業（マテリアル・ツール） */
             Set<String> professions,
-            /** ID の API 名（小文字）→ 取りうる最大値。並び替えに使う */
+            /** ID 名（小文字）→ 最大値 */
             Map<String, Integer> identifications,
-            /** Major ID の名前（英数字だけの小文字） */
+            /** 英数字だけの小文字 */
             Set<String> majorIds,
-            /** 必要スキル（str / dex / int / def / agi → 必要ポイント、0 は書かない）。装備以外は空 */
+            /** str / dex / int / def / agi → 必要ポイント（0 は含めない） */
             Map<String, Integer> skillRequirements) {
         public static final ApiFacets NONE = new ApiFacets(null, null, null, null, 0, Set.of(), Map.of(), Set.of());
 
-        /** 必要スキルの無いもの */
         public ApiFacets(@Nullable String type, @Nullable String subType, @Nullable String tier, @Nullable String attackSpeed,
                 int level, Set<String> professions, Map<String, Integer> identifications, Set<String> majorIds) {
             this(type, subType, tier, attackSpeed, level, professions, identifications, majorIds, Map.of());
         }
     }
 
-    /** アイテムごとの追加情報（カタログ構築時に Wynntils から取り出しておく） */
+    /** アイテムごとの追加情報（構築時に取り出す） */
     public record Extra(
             @Nullable List<ItemObtainInfo> obtain,
             @Nullable List<ProfessionType> craftProfessions,
             @Nullable ProfessionType gatherProfession,
-            /** 並び替えと表示に使うレベル（無ければ 0） */
+            /** 無ければ 0 */
             int level,
-            /** 検索用の追加の語（レアリティ・種類・レベル・クラスなど） */
+            /** 検索用の別名（レアリティ・種類・レベル・クラスなど） */
             @Nullable String aliases,
-            /** Wynntils のお気に入りに使う名前（Wynntils の getName() と同じもの） */
+            /** Wynntils のお気に入り名（getName() と同じ） */
             @Nullable String favoriteName,
             @Nullable BoxFamily boxFamily,
-            /** 装備に必要なクエスト（Wynntils の生の名前） */
+            /** 必要クエスト（Wynntils の生の名前） */
             @Nullable String requiredQuest,
             ApiFacets facets) {
         static final Extra NONE = new Extra(null, null, null, 0, null, null, null, null, ApiFacets.NONE);
@@ -117,7 +112,7 @@ public final class WynnCatalog {
             ItemStack stack,
             Component displayName,
             String plainName,
-            /** 構築時に1回だけ取った説明文（不変） */
+            /** 構築時の説明文 */
             List<Component> tooltip,
             List<ObtainSnapshot> obtain,
             List<ProfessionType> craftProfessions,
@@ -126,7 +121,6 @@ public final class WynnCatalog {
             @Nullable String aliases,
             @Nullable String favoriteName,
             @Nullable BoxFamily boxFamily,
-            /** 表示用に解決済みのクエスト名 */
             @Nullable String requiredQuest,
             ApiFacets facets) {
 
@@ -136,18 +130,17 @@ public final class WynnCatalog {
         }
     }
 
-    /** セット装備。メンバーはカタログのキー */
     public record SetSnapshot(String name, List<String> memberKeys, List<Component> bonusTooltip) {}
 
-    /** アスペクトのティア。threshold 個集めるとそのティアになる */
+    /** threshold は累計の必要数 */
     public record AspectTier(int tier, int threshold, List<Component> effect, com.wynntils.models.aspects.type.AspectInfo info) {
-        /** そのティアの見た目（レシピ画面を開いたときに作る。描画スレッドから呼ぶ） */
+        /** 描画スレッドから呼ぶ */
         public ItemStack createStack() {
             return new GuideAspectItemStack(info, tier);
         }
     }
 
-    /** アスペクト1種類ぶん（一覧には1件だけ出し、ティアはレシピ画面で見せる） */
+    /** アスペクト 1 種類。一覧は 1 件、ティアはレシピ画面 */
     public record AspectSnapshot(String key, List<AspectTier> tiers) {}
 
     private static volatile WynnCatalog current = new WynnCatalog(List.of(), List.of(), List.of());
@@ -170,7 +163,7 @@ public final class WynnCatalog {
         return sets;
     }
 
-    /** 装備 1 件で、Wynntils が説明文を作れる状態か（作れなければ空か 1 行だけが返る）。データが無ければ true */
+    /** 装備 1 件で説明文が作れるか。データが無ければ true。 */
     public static boolean tooltipsReady() {
         try {
             var first = Models.Gear.getAllGearInfos().findFirst();
@@ -181,7 +174,7 @@ public final class WynnCatalog {
         }
     }
 
-    /** Wynntils のガイド用アイテムの説明文（描画スレッドから呼ぶ） */
+    /** 描画スレッドから呼ぶ */
     public static List<Component> tooltipLines(ItemStack stack) {
         return Build.tooltipOf(stack);
     }
@@ -198,7 +191,7 @@ public final class WynnCatalog {
         return entries;
     }
 
-    /** 診断用：その瞬間の接続状態（WynnDataWatcher のキャッシュではない） */
+    /** その時点の接続状態（WynnDataWatcher のキャッシュではない） */
     public static boolean isOnWynncraftNow() {
         return isOnWynncraft();
     }
@@ -212,12 +205,9 @@ public final class WynnCatalog {
     }
 
     /**
-     * データが変わったかを見るための軽い指紋（クライアントスレッドで呼ぶ）。
-     * 内容の更新は Wynntils のダウンロード完了イベントで拾うので、ここでは件数だけを見る（初回読み込みの取りこぼし防止用）。
+     * データの変化を見る軽い指紋。内容の更新は取得完了イベントで拾うため、件数だけを見る。
      *
-     * <p>プレイヤーのクラスは含めない。説明文の「クラスに合うか」の表示は変わるが、そのためだけに
-     * キャラクターを切り替えるたびに全体を作り直し、EMI を再読み込みするのは重すぎる（実機ログで確認: 1 回の切り替えで 2 回ずつ）。
-     * 説明文はカタログを作ったときのクラスのまま。
+     * <p>クラスは含めない（切り替えのたびに全体を作り直すのは重すぎる）。説明文のクラス表示は構築時のまま。
      */
     static String computeDataSignature() {
         StringBuilder sb = new StringBuilder();
@@ -247,14 +237,13 @@ public final class WynnCatalog {
     }
 
     /**
-     * 数千件を1ティックで作るとゲームが止まるので、小さな作業に分けて少しずつ進める。
-     * 作業の一覧づくり（各モデルの列挙）も1つの作業として扱う。
+     * 小さな作業に分けて 1 ティックずつ進める構築処理。モデルの列挙も 1 つの作業。
      */
     static final class Build {
-        /** 1 つの作業。label は遅かったときにログで見分けるための名前 */
+        /** label はログ用 */
         private record Task(String label, Runnable body) {}
 
-        /** この時間を超えた作業は遅いものとして記録する（diag#3: カクつきの原因の特定用） */
+        /** これを超えた作業を記録する（diag#3） */
         private static final long SLOW_TASK_NANOS = 8_000_000L;
 
         private final ArrayDeque<Task> tasks = new ArrayDeque<>();
@@ -268,8 +257,8 @@ public final class WynnCatalog {
         private final List<AspectSnapshot> aspects = new ArrayList<>();
 
         Build() {
-            // 入手元は API の情報と有志のデータを合わせたもの（Wynntils のツールチップと同じ）を使う
-            // 外すかどうかの判定も各アイテムの処理の中で行う（計画の段階で 5000 件を一度に見ると1ティックが重くなる）
+            // 入手元は API と有志データの合成（Wynntils のツールチップと同じ）
+            // 除外判定は各作業内で行う（列挙時に全件見ると 1 ティックが重い）
             group("gear", () -> Models.Gear.getAllGearInfos()
                     .map(g -> (Runnable) () -> {
                         List<ItemObtainInfo> obtain = Models.Gear.getObtainInfo(g);
@@ -334,7 +323,7 @@ public final class WynnCatalog {
                             t.name(), null, null, ApiFacetsFactory.tome(t))))
                     .toList());
 
-            // アスペクトは1種類1件（最高ティアの見た目）。ティアと必要数はレシピ画面で見せる
+            // 1 種類 1 件（最高ティアの見た目）
             group("aspect", () -> Models.Aspect.getAllAspectInfos()
                     .map(a -> (Runnable) () -> {
                         int maxTier = Math.max(1, a.effects().size());
@@ -348,7 +337,6 @@ public final class WynnCatalog {
                             var effect = a.effects().get(t);
                             List<Component> lines = new ArrayList<>();
                             for (var line : effect.value()) lines.add(line.getComponent());
-                            // ティアごとの見た目と説明文は、レシピ画面を開いたときに作る
                             tiers.add(new AspectTier(t + 1, effect.key(), List.copyOf(lines), a));
                         }
                         aspects.add(new AspectSnapshot(key, List.copyOf(tiers)));
@@ -378,7 +366,7 @@ public final class WynnCatalog {
 
             group("emerald", () -> {
                 List<Runnable> list = new ArrayList<>();
-                // 順番は EmeraldUnits と同じ（エメラルド・ブロック・リキッド）
+                // 順番は EmeraldUnits と同じ
                 List<? extends ItemStack> units = Models.Emerald.getAllEmeraldItems();
                 for (int u = 0; u < units.size(); u++) {
                     ItemStack unit = units.get(u);
@@ -393,7 +381,6 @@ public final class WynnCatalog {
                 return list;
             });
 
-            // Wynntils のダンジョンキーガイドと同じ組み合わせ
             group("dungeon_key", () -> {
                 List<Runnable> list = new ArrayList<>();
                 for (Dungeon dungeon : Dungeon.values()) {
@@ -413,13 +400,12 @@ public final class WynnCatalog {
                 return list;
             });
 
-            // セット装備（メンバーのキーは装備のキーと同じ形）
             group("set", () -> Models.Set.getSets().stream()
                     .map(set -> (Runnable) () -> addSet(set.name(), set.items(), set.bonuses()))
                     .toList());
         }
 
-        /** 期限まで作業を進める。全部終わったら true。 */
+        /** 期限まで進める。完了で true。 */
         boolean step(long deadlineNanos) {
             while (!tasks.isEmpty()) {
                 Task task = tasks.pollFirst();
@@ -440,7 +426,7 @@ public final class WynnCatalog {
             if (slowTasks.size() < 10) slowTasks.add(entry);
         }
 
-        /** 診断用：遅かった作業の数と、最初の 10 件 */
+        /** 遅い作業の数と最初の 10 件 */
         String slowTaskSummary() {
             return slowTaskCount + " slow task(s)" + (slowTasks.isEmpty() ? "" : " " + slowTasks);
         }
@@ -456,7 +442,7 @@ public final class WynnCatalog {
         WynnCatalog result() {
             io.github.wkwk.wei.Diag.log(3, "Hidden from the item list: {}", hiddenCounts);
             if (emptyTooltips > 0) {
-                // 作成前に説明文が作れることを確かめているので、ふつうは 0 件
+                // 構築前に確認済みのため通常は 0
                 Wei.LOGGER.warn("{} item(s) have no tooltip text (e.g. {})", emptyTooltips, emptyTooltipSamples);
             }
             return new WynnCatalog(List.copyOf(entries), List.copyOf(sets), List.copyOf(aspects));
@@ -475,7 +461,7 @@ public final class WynnCatalog {
                     fail(name, t);
                     return;
                 }
-                // このグループの各アイテムを、次のグループより先に処理する（並び順を保つ）
+                // 並び順を保つため、次のグループより先に処理する
                 for (int i = items.size() - 1; i >= 0; i--) {
                     Runnable item = items.get(i);
                     tasks.addFirst(new Task(name + "#" + i, () -> {
@@ -490,15 +476,15 @@ public final class WynnCatalog {
         }
 
         private void fail(String group, Throwable t) {
-            // 同じグループのエラーは最初の1回だけ詳しく出す
+            // スタックトレースはグループごとに 1 回
             if (failedGroups.add(group)) {
                 Wei.LOGGER.warn("Failed to load some Wynncraft {} items", group, t);
             }
         }
 
         /**
-         * データに名前が無いアイテム。表示名は説明文から取るが、キー（お気に入りなどの保存に使う）は
-         * 言語や表示に左右されない ID にする（例: rune/AZ、powder/EARTH_3、dungeon_key/ICE_BARROWS_corrupted）
+         * データに名前の無いアイテム。表示名は説明文から取り、キーは言語に依存しない ID
+         * （例: rune/AZ、powder/EARTH_3）にする。
          */
         private void addUnnamed(String group, String id, ItemStack stack) {
             add(group, null, stack, Extra.NONE, id);
@@ -510,8 +496,8 @@ public final class WynnCatalog {
 
         private String add(String group, @Nullable String plainName, ItemStack stack, Extra extra, @Nullable String keyId) {
             List<Component> tooltip = tooltipOf(stack);
-            // Wynntils の説明文は1行目が空行で、名前は飾り文字（私用領域の文字）と一緒に2行目以降にある。
-            // 表示名は Wynntils のデータの名前。無ければ説明文の「飾りを除いて文字が残る最初の行」、最後にバニラの名前
+            // Wynntils の説明文は 1 行目が空行で、名前は 2 行目以降に飾り文字付きで入る。
+            // 表示名の優先順: データの名前 > 説明文の最初の文字行 > バニラの名前
             String nameLine = plainName != null ? null : firstTextLine(tooltip);
             Component display = plainName != null ? Component.literal(plainName)
                     : nameLine != null ? Component.literal(nameLine)
@@ -547,21 +533,21 @@ public final class WynnCatalog {
             return key;
         }
 
-        // ---- 一覧に出さないもの（件数は diag#3 に出す）
+        // ---- 一覧から除外するもの（件数は diag#3）
         private final Map<String, Integer> hiddenCounts = new java.util.TreeMap<>();
 
         private void countHidden(String reason) {
             hiddenCounts.merge(reason, 1, Integer::sum);
         }
 
-        /** Wynncraft の API で名前に ֎ が付いたもの（同じ名前の古い版。ゲーム内では同じ名前が2つ並ぶ） */
+        /** 名前に ֎ が付いた旧版（ゲーム内では同名が 2 つ並ぶ） */
         private boolean isDuplicateMarked(String name, java.util.Optional<String> apiName) {
             boolean marked = name.indexOf('\u058e') >= 0 || apiName.map(n -> n.indexOf('\u058e') >= 0).orElse(false);
             if (marked) countHidden("duplicate(֎)");
             return marked;
         }
 
-        /** 入手元が「入手不可」（廃止） */
+        /** 廃止（入手元が unavailable） */
         private boolean isDiscontinued(String group, String name, @Nullable List<ItemObtainInfo> obtain) {
             boolean gone = obtain != null && obtain.stream().anyMatch(o -> o.sourceType() == ItemObtainType.UNAVAILABLE);
             if (gone) countHidden("discontinued:" + group);
@@ -574,7 +560,7 @@ public final class WynnCatalog {
                 countHidden("questItem");
                 return true;
             }
-            // ID もメジャー ID も無いイベント景品（見た目だけのマスク・チーム防具など）。normal の初期装備は残す
+            // ID もメジャー ID も無いイベント景品。normal の初期装備は残す
             if (g.tier() != com.wynntils.models.gear.type.GearTier.NORMAL
                     && g.variableStats().isEmpty()
                     && g.fixedStats().majorIds().isEmpty()) {
@@ -625,7 +611,7 @@ public final class WynnCatalog {
         private int emptyTooltips;
         private final List<String> emptyTooltipSamples = new ArrayList<>();
 
-        /** 飾り文字を除いて文字が残る最初の行（名前の行）。無ければ null */
+        /** 飾り文字を除いて文字が残る最初の行。無ければ null。 */
         private static @Nullable String firstTextLine(List<Component> lines) {
             for (Component line : lines) {
                 String text = Names.strip(line.getString()).trim();
@@ -655,7 +641,7 @@ public final class WynnCatalog {
             return List.copyOf(list);
         }
 
-        /** Wynntils のツールチップと同じ考え方で、入手元として独立させる名前を決める。 */
+        /** 独立した入手元にする名前（Wynntils のツールチップと同じ基準） */
         private @Nullable String sourceNameOf(ItemObtainType type, String raw) {
             if (raw.isEmpty() || type == ItemObtainType.GUILD) return null;
             if (type == ItemObtainType.LOOTRUN && raw.equals("Lootrun Rewards")) return null;
@@ -664,7 +650,7 @@ public final class WynnCatalog {
         }
     }
 
-    /** Wynntils の GearModel と同じ条件：鑑定済み固定でなく、ボックスで落ちる入手元がある */
+    /** GearModel と同じ条件: 鑑定済み固定でなく、ボックスで落ちる */
     private static boolean canBeInBox(boolean preIdentified, List<ItemObtainInfo> obtain) {
         if (preIdentified || obtain == null) return false;
         for (ItemObtainInfo info : obtain) {
@@ -673,7 +659,7 @@ public final class WynnCatalog {
         return false;
     }
 
-    /** 系統のキーは手持ちのボックス（GearBoxItem）からも同じ形で作れるようにする */
+    /** 手持ちのボックス（GearBoxItem）からも同じ形で作れる */
     public static String boxFamilyKey(String gearTypeName, String gearTierName) {
         return "box/" + gearTypeName + "/" + gearTierName;
     }

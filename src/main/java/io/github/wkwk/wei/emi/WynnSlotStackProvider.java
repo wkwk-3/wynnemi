@@ -27,14 +27,12 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * インベントリ・銀行・取引所などで、カーソルの下の Wynncraft のアイテムを EMI のスタックに置き換える。
- * これで手持ちのアイテムでも R（入手元）・U（使い道）が効く。
+ * カーソル下の Wynncraft のアイテムを EMI のスタックに置き換え、手持ちのアイテムでも R/U を効かせる。
  *
- * <p>描画スレッドで呼ばれるので Wynntils に問い合わせてよい。クリック操作は奪わない（clickable = false）。
- * 該当しなければ空を返し、EMI の標準の処理に任せる。
+ * <p>描画スレッドで呼ばれる（Wynntils に問い合わせ可）。クリックは奪わない。該当しなければ空を返す。
  */
 final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
-    // EMI は描画のたびにカーソルの下を問い合わせてくる。同じアイテム（同じ ItemStack）なら前の結果を返す
+    // EMI は毎フレーム問い合わせるため、同じ ItemStack なら前回の結果を返す
     private ItemStack lastStack;
     private WynnLookup lastLookup;
     private EmiStackInteraction lastResult = EmiStackInteraction.EMPTY;
@@ -60,15 +58,13 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
             Optional<WynnItem> wynnItem = Models.Item.getWynnItem(stack);
             if (wynnItem.isEmpty()) return EmiStackInteraction.EMPTY;
 
-            // 未鑑定ボックス：系統のスタックを返し、R でそのレベル範囲の候補へ飛ぶ
+            // 未鑑定ボックス
             if (wynnItem.get() instanceof GearBoxItem box) {
-                // ツールチップの「可能性: レベル 101 … Lanternfly Leg」は Wynntils（ItemGuess）が足している行。
-                // 同じ Models.Gear.getPossibleGears で候補を取り、その候補だけを出す
+                // 候補はツールチップの「可能性:」行（Wynntils の ItemGuess）と同じ getPossibleGears で取る
                 List<WynnEmiStack> candidates = possibleGears(lookup, box, stack);
                 WynnLookup.BoxIndex index = lookup.boxes.get(
                         WynnCatalog.boxFamilyKey(box.getGearType().name(), box.getGearTier().name()));
                 if (!candidates.isEmpty() && index != null) {
-                    // この箱だけの一時的なスタックを作り、R/U ではその候補への「未鑑定ボックス」のレシピだけを出す
                     WynnEmiStack instance = WynnBoxInstances.create(stack, box, index, candidates);
                     if (instance != null) return new EmiStackInteraction(instance, null, false);
                 }
@@ -88,12 +84,11 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                         wynnItem.get().getClass().getSimpleName());
             }
             if (found == null) {
-                // 種類ごとの対応が無いもの（パウダー・ルーンなど）は名前で引く
+                // キーの対応が無いもの（パウダー・ルーンなど）は名前で引く
                 String name = wynnItem.get() instanceof NamedItemProperty named ? named.getName() : null;
                 if (name == null) name = stack.getHoverName().getString();
                 String byName = lookup.keyByPlainName.get(Names.strip(name).toLowerCase(Locale.ROOT));
                 if (byName != null) found = lookup.byKey.get(byName);
-                // diag#7: 名前だけで対応付けた（別のアイテムと取り違える可能性がある）
                 Diag.once(7, "name:" + wynnItem.get().getClass().getName() + ":" + name,
                         "Inventory item matched BY NAME: '{}' ({}) -> {}", name,
                         wynnItem.get().getClass().getSimpleName(), byName == null ? "no match" : byName);
@@ -105,7 +100,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
         }
     }
 
-    /** カタログのキーと同じ形（WynnCatalog の add に渡す名前）を作る */
+    /** カタログと同じ形式のキー */
     private static @Nullable String keyOf(WynnItem item) {
         if (item instanceof GearItem gear) return "gear/" + gear.getName();
         if (item instanceof IngredientItem ing) return "ingredient/" + ing.getIngredientInfo().name();
@@ -116,7 +111,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
         return null;
     }
 
-    /** diag#7: 名前で見つからなかったとき、最後の単語を含むカタログ名を最大5件出す（表記ゆれの調査用） */
+    /** diag#7: 名前で見つからないとき、最後の単語を含むカタログ名を最大 5 件出す */
     private static void logNameCandidates(WynnLookup lookup, String name) {
         String stripped = Names.strip(name).toLowerCase(Locale.ROOT).trim();
         String[] words = stripped.split("\\s+");
@@ -133,7 +128,7 @@ final class WynnSlotStackProvider implements EmiStackProvider<Screen> {
                 candidates.isEmpty() ? "none" : candidates);
     }
 
-    /** 未鑑定ボックスの中身の候補（Wynntils の判定）のうち、一覧にあるもの */
+    /** 未鑑定ボックスの候補のうち一覧にあるもの */
     private static List<WynnEmiStack> possibleGears(WynnLookup lookup, GearBoxItem box, ItemStack stack) {
         List<WynnEmiStack> out = new ArrayList<>();
         List<String> names = new ArrayList<>();

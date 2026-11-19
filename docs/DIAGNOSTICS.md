@@ -40,3 +40,9 @@
 - `[WEI tooltip]`（常に出る）: 一覧作成時に説明文が作れず、バニラの名前（「クラフト不可能なポーション」など）で代用したアイテム。`FALLBACK #n ... cause=...` と元データの要点、例外のスタックトレース（最初の20件）、`build summary`、ホバー時の作り直し結果 `HOVER retry`。
 - `[WEI item]`（常に出る）: 一覧の全アイテム1件ずつ。キー、表示名とその出どころ（data / tooltipLine / vanilla）、データの名前と説明文の名前（食い違えば NAME-MISMATCH）、名前の行の位置、行数、バニラ名、説明文の1・2行目（私用領域の文字は \u{XXXX}）。先頭30件と問題のあるものは行の構造（フォントなど）も。最後に `name sources` で集計。
 - `[WEI hover]`（常に出る）: 画面で説明文を出したアイテムごとに1回、出した名前と先頭3行。
+
+## 2.1.0 から
+
+- 調査用ログ（`[WEI diag#…]`）は、プレリリース（バージョンに「-」を含む）では既定で出し、リリースでは出さない。`config/wei.json` の `diagnostics`（true / false）か JVM 引数 `-Dwei.diag=true|false` で上書きできる。
+- リリースで常に出るのは、起動・一覧の完成（1 行）・失敗や機能停止の警告だけ。
+- #13: `EMI hook active: <名前>`。PF-EMI に差し込めた Mixin（search / syncFallback / loadGate / favorites / history / recipeOverride）。

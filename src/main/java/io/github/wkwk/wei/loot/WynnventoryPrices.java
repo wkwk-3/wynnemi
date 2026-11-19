@@ -11,14 +11,14 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 取引所の価格を、入っている Wynnventory MOD に聞く（Wynnventory の鍵と通信・キャッシュをそのまま使う）。
- * Wynnventory の公開 API ではないため、クラスやメソッドが見つからなければ機能を止める。
+ * 取引所の価格を Wynnventory MOD から取る（鍵・通信・キャッシュは Wynnventory のもの）。
+ * 非公開 API のため、見つからなければ機能を止める。
  *
- * <p>使っているもの（Wynnventory 2.2.5 で確認）:
+ * <p>使用箇所（Wynnventory 2.2.5）:
  * <ul>
- *   <li>{@code TrademarketItemSnapshot.resolveSnapshot(ItemStack)} … 1つのアイテムの価格（初回は null を返し裏で取得）</li>
- *   <li>{@code TrademarketItemSnapshot.resolveGearBoxItem(GearBoxItem)} … 未鑑定ボックスの中身の候補ごとの価格</li>
- *   <li>{@code snapshot.live() / historic()} と {@code TrademarketItemSummary.getLowestPrice()} など</li>
+ *   <li>{@code TrademarketItemSnapshot.resolveSnapshot(ItemStack)}: 初回は null を返して裏で取得</li>
+ *   <li>{@code TrademarketItemSnapshot.resolveGearBoxItem(GearBoxItem)}: 候補ごとの価格</li>
+ *   <li>{@code snapshot.live() / historic()}、{@code TrademarketItemSummary.getLowestPrice()} など</li>
  * </ul>
  */
 public final class WynnventoryPrices {
@@ -26,7 +26,7 @@ public final class WynnventoryPrices {
 
     private static volatile boolean initialized;
     private static volatile boolean available;
-    /** 価格の取り出し（getLowestPrice など）。毎回探すと重いので覚えておく */
+    /** getLowestPrice などのメソッドのキャッシュ */
     private static final Map<String, Method> GETTERS = new java.util.concurrent.ConcurrentHashMap<>();
     private static Method resolveSnapshot;
     private static @Nullable Method resolveGearBox;
@@ -35,7 +35,7 @@ public final class WynnventoryPrices {
 
     private WynnventoryPrices() {}
 
-    /** スロットの描画ごとに呼ばれるので、2回目以降は volatile の読み取りだけで返す */
+    /** スロット描画ごとに呼ばれるため、初期化後はロックを取らない */
     public static boolean isAvailable() {
         if (!initialized) {
             synchronized (WynnventoryPrices.class) {
@@ -73,8 +73,7 @@ public final class WynnventoryPrices {
     }
 
     /**
-     * アイテム1つの価格（エメラルド）。まだ取得中・価格なし・売れないアイテムは empty。
-     * 未鑑定ボックスは候補の中で一番高いもの。
+     * 価格（エメラルド）。取得中・価格なしは empty。未鑑定ボックスは候補の最高値。
      */
     public static OptionalLong priceOf(ItemStack stack, @Nullable Object gearBox, String priceType) {
         if (!isAvailable() || stack.isEmpty()) return OptionalLong.empty();

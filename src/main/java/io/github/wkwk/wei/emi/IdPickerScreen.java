@@ -12,7 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * ID を一覧から選ぶ画面。上で絞り込み・並び順（A→Z / Z→A）を切り替え、押した ID を検索画面の条件に足す。
+ * ID の選択画面。絞り込みと並び順（A→Z / Z→A）の切り替えがあり、押した ID を検索画面の条件に足す。
  */
 final class IdPickerScreen extends Screen {
     private static final int ROW = 20;
@@ -22,7 +22,7 @@ final class IdPickerScreen extends Screen {
     private final List<String> allIds;
     private final Consumer<String> onPick;
 
-    /** 画面を開き直しても並び順は覚えておく */
+    /** 並び順は画面を閉じても保持 */
     private static boolean descending;
     private String filter = "";
     private int page;
@@ -52,7 +52,7 @@ final class IdPickerScreen extends Screen {
         EditBox search = new EditBox(font, left, top, listW - 96, 18, Component.empty());
         search.setHint(Component.translatable("wei.idpicker.filter"));
         search.setValue(filter);
-        // 入力のたびに画面ごと作り直すと入力欄のカーソルが飛ぶので、一覧のボタンだけ作り直す
+        // 画面ごと作り直すと入力欄のフォーカスが外れるため、一覧だけ作り直す
         search.setResponder(v -> {
             if (!v.equals(filter)) {
                 filter = v;

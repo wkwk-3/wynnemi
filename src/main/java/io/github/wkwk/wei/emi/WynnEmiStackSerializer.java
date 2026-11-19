@@ -10,8 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * EMI のお気に入りや履歴に Wynncraft のアイテムを保存できるようにする。
- * 保存するのはキーだけで、読み込み時に現在登録中のスタックから引く。
+ * お気に入り・履歴の保存形式。キーだけを保存し、読み込み時に登録中のスタックから引く。
  */
 public final class WynnEmiStackSerializer implements EmiIngredientSerializer<WynnEmiStack> {
     public static final String TYPE = "wei";
@@ -37,13 +36,12 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
             if (json.has("key")) {
                 String key = json.get("key").getAsString();
                 WynnEmiStack stack = REGISTERED.get(key);
-                // 1.0.1 でアスペクトをティアごと（aspect/名前 T2）から1件（aspect/名前）にまとめた。古いキーも読めるようにする
                 if (stack == null) {
                     String legacy = legacyKey(key);
                     if (legacy != null) stack = REGISTERED.get(legacy);
                 }
                 if (stack != null) return stack.copy();
-                // diag#1: ここで空を返すと EMI はそのお気に入り（非表示設定など）を捨てる
+                // 空を返すと EMI はそのお気に入りを破棄する（Mixin で保持）
                 Diag.warn(1, "Deserialize MISS for key '{}' (registered stacks: {}, catalog items: {}, thread={})",
                         json.get("key").getAsString(), REGISTERED.size(),
                         io.github.wkwk.wei.data.WynnCatalog.current().entries().size(), Diag.thread());
@@ -52,11 +50,11 @@ public final class WynnEmiStackSerializer implements EmiIngredientSerializer<Wyn
         return EmiStack.EMPTY;
     }
 
-    /** 古い形式のキーを今の形にする。変える必要が無ければ null */
+    /** 旧形式のキーを現行の形に変換する。不要なら null。 */
     public static @org.jetbrains.annotations.Nullable String legacyKey(String key) {
         if (key.startsWith("aspect/") && key.matches(".* T\\d+$")) return key.substring(0, key.lastIndexOf(" T"));
-        // 1.0.1-test.19 より前は、名前の無いアイテム（ルーン・パウダー・キーなど）のキーが表示名だった（例: rune/Az Rune）。
-        // 今は言語に左右されない ID（rune/AZ）。表示名から今のキーを引く
+        // 旧: aspect/名前 T2（1.0.1 でティアを 1 件に統合）
+        // 旧: 名前の無いアイテムのキーが表示名（rune/Az Rune → 現 rune/AZ）。表示名から現行キーを引く
         int slash = key.indexOf('/');
         if (slash > 0) {
             String group = key.substring(0, slash);

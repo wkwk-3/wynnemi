@@ -27,31 +27,30 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 
 /**
- * ルートチェスト・ローラン報酬・レイド報酬・イベント報酬を開いたとき、
- * 取引所の価格が基準以上のアイテムのスロットに色を付け、最初に見つかったときに1回だけ音を鳴らす。
+ * 報酬チェスト（ルート・ローラン・レイド・イベント）で、取引所の価格が基準以上のスロットを強調し、
+ * 新しく見つかったときに音を鳴らす。
  */
 public final class LootHighlight {
-    /** 価格が取得中のアイテムを見直す間隔（最初は短く、見つからないたびに倍にする） */
+    /** 価格が無いアイテムの再問い合わせ間隔（失敗のたびに倍） */
     private static final long RECHECK_FIRST_NANOS = 250_000_000L;
     private static final long RECHECK_MAX_NANOS = 8_000_000_000L;
-    /** 1つのチェストで覚えておくアイテムの上限（中身の送り直しで増え続けないように） */
+    /** 1 画面でのキャッシュ上限（再送で増え続けないため） */
     private static final int MAX_CACHED = 512;
 
     private static boolean registered;
 
-    /** value が empty なら nextCheckAt まで聞き直さない（売れない GUI のアイテムなどを毎フレーム聞かない） */
+    /** value が empty なら nextCheckAt まで問い合わせない */
     private record Price(OptionalLong value, long nextCheckAt, long backoff) {}
 
     private final Map<ItemStack, Price> prices = new IdentityHashMap<>();
-    /** 同じ画面で鳴らしすぎないための間隔 */
+    /** 音の最小間隔 */
     private static final long SOUND_INTERVAL_NANOS = 1_000_000_000L;
 
     private Screen screen;
     private String priceType = "";
-    /** 高額と判定したスロット → そのときのアイテム名（中身が入れ替わったら新しい当たりとして鳴らす） */
+    /** スロット → 高額と判定したアイテム名（入れ替わりの検出用） */
     private final Map<Integer, String> flagged = new java.util.HashMap<>();
     private long lastSoundAt;
-    /** いま高額と判定しているスロット（枠を描く） */
     private final java.util.Set<Slot> highSlots = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
 
     public static void registerOnce() {
@@ -85,12 +84,10 @@ public final class LootHighlight {
         if (!WynnventoryPrices.isAvailable()) return;
 
         if (!config.lootHighlightPrice.equals(priceType)) {
-            // 判定に使う価格の種類が変わった
             priceType = config.lootHighlightPrice;
             prices.clear();
         }
         if (event.getScreen() != screen) {
-            // 別のチェストを開いた
             screen = event.getScreen();
             prices.clear();
             flagged.clear();
@@ -104,11 +101,11 @@ public final class LootHighlight {
 
         OptionalLong price = priceOf(stack, config.lootHighlightPrice);
         if (price.isEmpty()) return;
-        // 種類ごとの基準（設定に無ければ全体の基準）。負ならその種類は通知しない
+        // 負の基準は通知しない
         double thresholdLe = config.thresholdFor(categoryOf(stack).id, rarityOf(stack));
         long threshold = Math.round(thresholdLe * 4096);
         if (thresholdLe < 0 || price.getAsLong() < threshold) {
-            // 安いものに入れ替わったスロットは、また高額品が入ったときに鳴らせるよう忘れる
+            // 入れ替わりで安くなったら忘れる（次の高額品で鳴らすため）
             flagged.remove(slot.index);
             highSlots.remove(slot);
             return;
@@ -116,12 +113,12 @@ public final class LootHighlight {
 
         int x = slot.x;
         int y = slot.y;
-        // 背景は薄く塗り、目立たせるのはアイテムの上に描く枠（onRenderSlotPost）
+        // 背景は薄く、枠は onRenderSlotPost でアイテムの上に描く
         int base = config.lootHighlightColor | 0xFF000000;
         event.getGuiGraphics().fill(x, y, x + 16, y + 16, (base & 0x00FFFFFF) | 0x70000000);
         highSlots.add(slot);
 
-        // 初めての当たり、または同じスロットの中身が入れ替わって（ローランのリロールなど）また当たったとき
+        // 初回、または入れ替わり（ローランのリロールなど）で再び高額
         String name = stack.getHoverName().getString();
         if (!name.equals(flagged.put(slot.index, name))) {
             long now = System.nanoTime();
@@ -136,7 +133,7 @@ public final class LootHighlight {
         }
     }
 
-    /** アイテムの上に、点滅する太い枠を描く（Wynntils のレア度の色付けと見分けがつくように） */
+    /** 点滅する枠（Wynntils のレア度の色と区別するため） */
     @SubscribeEvent
     public void onRenderSlotPost(SlotRenderEvent.Post event) {
         Slot slot = event.getSlot();
@@ -146,14 +143,13 @@ public final class LootHighlight {
             return;
         }
         int rgb = WeiConfig.get().lootHighlightColor & 0x00FFFFFF;
-        // 0.8 秒周期で明るさを変える
         double phase = (System.currentTimeMillis() % 800L) / 800.0;
         int alpha = (int) (0xA0 + 0x5F * (0.5 + 0.5 * Math.sin(phase * Math.PI * 2)));
         int color = (alpha << 24) | rgb;
         var g = event.getGuiGraphics();
         int x = slot.x;
         int y = slot.y;
-        // 外側 1px（スロットの隙間）+ 内側 1px の 2px の枠
+        // スロットの隙間 1px + 内側 1px
         g.fill(x - 1, y - 1, x + 17, y + 1, color);
         g.fill(x - 1, y + 15, x + 17, y + 17, color);
         g.fill(x - 1, y + 1, x + 1, y + 15, color);

@@ -13,9 +13,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * EMI はタグとレシピの両方の同期を受け取ってから読み込むが、Wynncraft はタグしか送らないので読み込まれない。
- * 片方だけ来て 3 秒たっても、もう片方が来なければ読み込む（diag#12）。
- * 予備の読み込みのあと 10 秒以内に遅れて届いた合図は数えない（数えると次の合図で二重に読み込む）。
+ * EMI はタグとレシピ両方の同期で読み込むが、Wynncraft はタグしか送らない。
+ * 片方だけ来て 3 秒以内にもう片方が来なければ読み込む（diag#12）。
+ * その後 10 秒以内に届いた片割れは数えない（数えると次の合図で二重に読み込む）。
  */
 @Mixin(value = EmiReloadManager.class, remap = false)
 public abstract class EmiReloadManagerMixin {
@@ -23,7 +23,6 @@ public abstract class EmiReloadManagerMixin {
     private static final long WEI_SYNC_FALLBACK_MS = 3_000;
     @Unique
     private static final long WEI_LATE_SIGNAL_MS = 10_000;
-    /** 予備の読み込みを待つタイマー（スレッドは 1 本だけ） */
     @Unique
     private static final ScheduledExecutorService WEI_TIMER = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "WEI EMI sync fallback");
@@ -57,13 +56,12 @@ public abstract class EmiReloadManagerMixin {
         synchronized (EmiReloadManager.class) {
             int mask = EmiReloadManagerAccessor.wei$getMask();
             if (mask == 0 || mask == 3) {
-                // 両方そろって読み込みが始まった
+                // EMI 自身が読み込みを始めた
                 wei$generation++;
                 wei$fallbackFiredAt = 0;
                 return;
             }
             if (wei$fallbackFiredAt != 0 && System.currentTimeMillis() - wei$fallbackFiredAt < WEI_LATE_SIGNAL_MS) {
-                // 予備の読み込みのあとに遅れて来た片割れ。数えない
                 Diag.log(12, "Late {} signal after the sync fallback; ignored", received);
                 EmiReloadManagerAccessor.wei$setMask(0);
                 wei$fallbackFiredAt = 0;

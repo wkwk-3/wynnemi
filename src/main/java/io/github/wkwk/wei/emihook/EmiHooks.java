@@ -19,17 +19,16 @@ import java.util.function.Consumer;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 本家の EMI（PF-EMI）に WEI の Mixin で差し込む機能の受け口。
- * 以前は EMI のフォーク（dev.emi.emi.fork.EmiForkApi）にあったもの。
+ * PF-EMI に Mixin で差し込む機能の受け口。
  *
  * <ul>
- *   <li>検索の拡張（WEI 専用の検索語・否定検索）</li>
- *   <li>読み込みの待ち合わせ（WEI のアイテム一覧ができるまで EMI がプラグインを登録しない）</li>
- *   <li>読めなかったお気に入り・履歴を消さずに書き戻す</li>
- *   <li>R/U のレシピ画面の差し替え（未鑑定ボックス）</li>
+ *   <li>検索の拡張</li>
+ *   <li>読み込みの待ち合わせ（一覧の完成までプラグイン登録を止める）</li>
+ *   <li>読めなかったお気に入り・履歴の保持</li>
+ *   <li>R/U のレシピ画面の差し替え</li>
  * </ul>
  *
- * どの Mixin が実際に効いたかは {@link #applied} に記録し、起動時のログに出す。
+ * 効いた Mixin は {@link #applied} に記録する（diag#13）。
  */
 public final class EmiHooks {
     private static final List<EmiSearchExtension> SEARCH_EXTENSIONS = new CopyOnWriteArrayList<>();
@@ -37,17 +36,15 @@ public final class EmiHooks {
     private static final List<RecipeOverride> RECIPE_OVERRIDES = new CopyOnWriteArrayList<>();
     private static final long LOAD_GATE_TIMEOUT_MS = 30_000;
 
-    /** 読めずに保持しているお気に入り（EMI の favorites.json の1件そのまま） */
+    /** 読めなかったお気に入り（favorites.json の 1 件そのまま） */
     private static volatile List<JsonObject> unresolvedFavorites = List.of();
-    /** 読めずに保持している検索履歴 */
     private static volatile List<JsonElement> unresolvedLookupHistory = List.of();
 
-    /** 実際に動いた Mixin の名前（EMI の版によっては差し込めない所があるので、ログで確かめる） */
     public static final Set<String> applied = ConcurrentHashMap.newKeySet();
 
     private record LoadGate(String name, BooleanSupplier ready) {}
 
-    /** R（uses=false）/ U（uses=true）のレシピ画面の中身を差し替える。差し替えないなら null */
+    /** R（uses=false）/ U（uses=true）のページ。差し替えないなら null。 */
     public interface RecipeOverride {
         @Nullable Map<EmiRecipeCategory, List<EmiRecipe>> pages(EmiIngredient stack, boolean uses);
     }
@@ -89,7 +86,7 @@ public final class EmiHooks {
         LOAD_GATES.add(new LoadGate(name, ready));
     }
 
-    /** EMI の読み込みスレッドを、すべての待ち合わせが整うか、30 秒たつか、abort が true になるまで止める */
+    /** 全条件が整う・30 秒経過・abort のいずれかまで EMI の読み込みスレッドを止める */
     public static void awaitLoadGates(Consumer<String> step, BooleanSupplier abort) {
         long start = System.currentTimeMillis();
         String waitingFor = null;

@@ -28,7 +28,7 @@ public abstract class EmiSidebarsMixin {
         wei$unresolved = new ArrayList<>();
     }
 
-    /** load 内の getDeserialized は lookup_history の 1 か所だけ */
+    /** load 内の getDeserialized は lookup_history の 1 か所のみ */
     @Redirect(method = "load", at = @At(value = "INVOKE",
             target = "Ldev/emi/emi/api/stack/serializer/EmiIngredientSerializer;getDeserialized(Lcom/google/gson/JsonElement;)Ldev/emi/emi/api/stack/EmiIngredient;"))
     private static EmiIngredient wei$deserialize(JsonElement element) {

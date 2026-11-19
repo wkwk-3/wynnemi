@@ -7,15 +7,14 @@ import io.github.wkwk.wei.Wei;
 import net.neoforged.bus.api.SubscribeEvent;
 
 /**
- * Wynntils はすべてのデータのダウンロードと処理が終わると、メインスレッドで
- * DownloadEvent.Completed（一部失敗なら Failed）を出す。これを受けてカタログを作り直す。
+ * Wynntils の全データの取得完了（DownloadEvent.Completed / Failed）でカタログを作り直す。
  */
 public final class WynntilsDownloadListener {
     private static boolean registered;
 
     /**
-     * Wynntils のイベントバスは Wynntils の初期化中に作られ、MOD の初期化順は決まっていないため、
-     * 最初のクライアントティックで登録する。失敗しても件数の監視で動き続ける。
+     * Wynntils のイベントバスは Wynntils の初期化中に作られ、MOD の初期化順は不定のため最初のティックで登録する。
+     * 失敗しても件数の監視で動く。
      */
     public static void registerOnce() {
         if (registered) return;
@@ -35,7 +34,7 @@ public final class WynntilsDownloadListener {
 
     @SubscribeEvent
     public void onFailed(DownloadEvent.Failed event) {
-        // 一部失敗でも、読めた分は作り直す（失敗した種類の再試行は WynnDataWatcher が行う）
+        // 一部失敗でも読めた分で作る（再試行は WynnDataWatcher）
         WynnDataWatcher.onWynntilsDataDownloaded();
     }
 }

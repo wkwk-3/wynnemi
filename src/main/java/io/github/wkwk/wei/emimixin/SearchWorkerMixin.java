@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** WEI の検索語を取り出し、EMI の検索スレッドでその条件でも絞り込み、指定があれば並べ替える */
+/** WEI の検索語で絞り込み・並べ替えを足す。 */
 @Mixin(targets = "dev.emi.emi.search.EmiSearch$SearchWorker", remap = false)
 public abstract class SearchWorkerMixin {
     @Shadow
@@ -30,9 +30,8 @@ public abstract class SearchWorkerMixin {
     private List<EmiSearchExtension.Prepared> wei$extensions = List.of();
 
     /**
-     * 検索ごとに作られる SearchWorker の中で、WEI の検索語を取り出す。
-     * EmiSearch.search の排他ブロックの中・呼び出し元（クライアント）のスレッドで動くので、
-     * 別の検索の条件と混ざらない。残りの語だけを EMI 本体の検索に渡す。
+     * WEI の検索語を取り出し、残りを EMI 本体に渡す。
+     * EmiSearch.search の排他ブロック内・クライアントスレッドで動くため、他の検索と混ざらない。
      */
     @Inject(method = "<init>", at = @At("TAIL"))
     private void wei$prepare(CallbackInfo ci) {
@@ -58,7 +57,7 @@ public abstract class SearchWorkerMixin {
         return true;
     }
 
-    /** 2 回目の apply（絞り込んだ結果を渡すほう）の前に並べ替える */
+    /** 絞り込み結果を渡す apply（ordinal 1）の前で並べ替える */
     @ModifyArg(method = "run", at = @At(value = "INVOKE",
             target = "Ldev/emi/emi/search/EmiSearch;apply(Ldev/emi/emi/search/EmiSearch$SearchWorker;Ljava/util/List;)V",
             ordinal = 1), index = 1)

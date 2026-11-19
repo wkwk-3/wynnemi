@@ -21,17 +21,15 @@ import java.util.Set;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
- * EMI のお気に入りに入れた Wynncraft のアイテムを、Wynntils のお気に入りにも入れる（EMI → Wynntils の一方向）。
- * Wynntils はお気に入りのアイテムを目立たせて表示するので、チェストや取引所で見つけやすくなる。
+ * EMI のお気に入りを Wynntils のお気に入りに反映する（一方向）。
  *
  * <ul>
- *   <li>このMODが追加した名前だけを記録し、EMI から外したらそれだけを Wynntils からも外す。
- *       もともと Wynntils でお気に入りにしていたものには触れない。</li>
- *   <li>EMI のお気に入りは公開 API に無いため内部クラスを読む。EMI の更新で使えなくなったら、
- *       ログに一度だけ警告を出してこの機能だけ止まる。</li>
+ *   <li>WEI が追加した名前だけを記録し、EMI から外したらそれだけを外す。
+ *       元から Wynntils にあるものには触れない。</li>
+ *   <li>EMI の内部クラスを読むため、失敗が続けばこの機能だけ止める。</li>
  * </ul>
  *
- * クライアントスレッドで1秒ごとに動く。
+ * クライアントスレッドで 1 秒ごと。
  */
 public final class WynnFavoritesSync {
     private static final Gson GSON = new Gson();
@@ -49,12 +47,11 @@ public final class WynnFavoritesSync {
     public static void tick() {
         if (disabled || ++ticks % 20 != 0) return;
         if (!WeiConfig.get().syncFavoritesToWynntils) return;
-        // Wynntils のデータと設定が読み込まれるまで待つ
         if (WynnCatalog.current().entries().isEmpty()) return;
-        // EMI の読み込み中（お気に入り一覧がいったん空になる）や、WEI の索引ができる前は動かない。
-        // 実機ログで、この間に Wynntils 側のお気に入りを全部外していた（diag#2）
+        // EMI の読み込み中（お気に入りが一時的に空）や索引の完成前は動かない。
+        // 動くと Wynntils 側を全部外す（diag#2）
         if (!dev.emi.emi.runtime.EmiReloadManager.isLoaded() || !WynnLookup.isReady()) return;
-        // EMI のお気に入り・索引・保持中の未解決分が前回と同じなら比べない
+        // 前回から変化が無ければ何もしない
         long fingerprint = fingerprint();
         if (fingerprint == lastFingerprint) return;
         try {
@@ -66,7 +63,7 @@ public final class WynnFavoritesSync {
                 if (name != null) wanted.add(name);
             }
 
-            // 読めなかったお気に入り（一覧から外したアイテムなど）は EMI 側に残っているので、Wynntils からも外さない
+            // 読めなかったお気に入りは EMI 側で保持中のため外さない
             Set<String> keep = unresolvedNames();
             boolean changed = false;
             int emiFavorites = EmiFavorites.favorites.size();
@@ -90,8 +87,7 @@ public final class WynnFavoritesSync {
                         name, emiFavorites, wanted.size(), emiLoaded, WynnLookup.isReady());
             }
             if (removed > 0 && removed == trackedBefore) {
-                // diag#2: 一度に全部外した＝EMI の再読み込み中や準備前に動いた疑い
-                // EMI と WEI の準備ができているときだけ動くので、これは利用者が EMI 側で全部外した操作
+                // 準備完了後のみ動くため、利用者の操作
                 Diag.log(2, "Removed all {} tracked Wynntils favorites (user removed them in EMI; emiLoaded={}, lookup ready={})",
                         removed, emiLoaded, WynnLookup.isReady());
             }
@@ -99,7 +95,7 @@ public final class WynnFavoritesSync {
             failures = 0;
             lastFingerprint = fingerprint;
         } catch (Throwable t) {
-            // 起動直後の一時的な失敗は見逃し、続くなら EMI / Wynntils の内部が変わったとみてこの機能だけ止める
+            // 失敗が続けば内部が変わったとみなして止める
             if (++failures >= MAX_FAILURES) {
                 disabled = true;
                 Wei.LOGGER.warn("Favorites sync to Wynntils disabled", t);
@@ -117,7 +113,7 @@ public final class WynnFavoritesSync {
         return h;
     }
 
-    /** EMI が読めずに保持しているお気に入りのうち WEI のものを、Wynntils のお気に入りの名前の候補にする */
+    /** 保持中の未解決お気に入りの、Wynntils でのお気に入り名 */
     private static Set<String> unresolvedNames() {
         Set<String> names = new HashSet<>();
         for (com.google.gson.JsonObject json : EmiHooks.unresolvedFavorites()) {
@@ -127,7 +123,7 @@ public final class WynnFavoritesSync {
                 String key = stack.get("key").getAsString();
                 String name = key.substring(key.indexOf('/') + 1).replaceAll("#\\d+$", "");
                 names.add(name);
-                // マテリアル・アスペクトのキーは「名前 T1」。Wynntils のお気に入りはティアなしの名前
+                // 「名前 T1」形式はティアを除く
                 names.add(name.replaceAll(" T\\d+$", ""));
             } catch (RuntimeException ignored) {
             }

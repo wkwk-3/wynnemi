@@ -18,20 +18,19 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 手持ちの未鑑定ボックス1つぶんの一時的なスタック。R/U を押すと、
- * そのボックスの中身の候補（Wynntils の判定）への「未鑑定ボックス」のレシピだけを出す。
- * EMI には登録しない（EMI フォークの recipe override で中身を差し込む）。
+ * 手持ちの未鑑定ボックス用の一時スタック。R/U でその箱の候補（Wynntils の判定）への
+ * 「未鑑定ボックス」レシピだけを出す。
+ * EMI には登録せず、{@link EmiHooks#registerRecipeOverride} でページを差し込む。
  */
 final class WynnBoxInstances {
     private static final String PREFIX = "boxinstance/";
-    /** 一時スタックのキー → 出すレシピ。箱の種類・ティア・レベル範囲ごとに作り直さず使い回す */
+    /** 一時スタックのキー → 表示するレシピ */
     private static final Map<String, List<EmiRecipe>> RECIPES = new ConcurrentHashMap<>();
     private static final Map<String, WynnEmiStack> STACKS = new ConcurrentHashMap<>();
     private static boolean registered;
 
     private WynnBoxInstances() {}
 
-    /** EMI フォークに「この一時スタックのページはこれ」と教える。1回だけ */
     static synchronized void registerOnce() {
         if (registered) return;
         registered = true;
@@ -50,13 +49,13 @@ final class WynnBoxInstances {
             List<WynnEmiStack> candidates) {
         registerOnce();
         List<String> wanted = candidates.stream().map(WynnEmiStack::key).sorted().toList();
-        // 候補の組み合わせごとに 1 つ（種類・ティア・レベル範囲が同じでも、候補が違えば別物）
+        // 種類・ティア・範囲が同じでも候補が違えば別のスタック
         String key = PREFIX + box.getGearType() + "/" + box.getGearTier() + "/" + box.getLevelRange().low() + "-"
                 + box.getLevelRange().high() + "/" + String.join(",", wanted);
         WynnEmiStack existing = STACKS.get(key);
         if (existing != null) return existing;
 
-        // 候補 → その候補への「未鑑定ボックス」のレシピ。系統ごとに 1 回だけ作る
+        // 候補 → レシピの索引は系統ごとに 1 回だけ作る
         Map<String, List<EmiRecipe>> byGear = BY_GEAR.computeIfAbsent(index, WynnBoxInstances::indexByGear);
         List<EmiRecipe> recipes = new ArrayList<>();
         for (String gear : wanted) recipes.addAll(byGear.getOrDefault(gear, List.of()));
@@ -88,7 +87,7 @@ final class WynnBoxInstances {
         return out;
     }
 
-    /** EMI の読み込み直しで古いレシピを指さないよう、作り直しのたびに空にする */
+    /** EMI の再登録時に呼ぶ（古いレシピを参照しないため） */
     static void clear() {
         RECIPES.clear();
         STACKS.clear();
