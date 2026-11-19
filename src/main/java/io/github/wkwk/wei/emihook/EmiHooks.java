@@ -164,7 +164,13 @@ public final class EmiHooks {
      */
     public static @Nullable Map<EmiStack, Boolean> highlightResults(Object compiledQuery, List<ItemStack> items) {
         ActiveSearch search = activeSearch;
-        if (search == null || search.query() != compiledQuery || search.extensions().isEmpty()) return null;
+        if (search == null || search.query() != compiledQuery || search.extensions().isEmpty()) {
+            Diag.once(13, "highlight-skip:" + (search == null ? "none" : search.query() != compiledQuery ? "query" : "noext"),
+                    "Highlight: WEI terms not applied (activeSearch={}, sameQuery={}, extensions={})",
+                    search != null, search != null && search.query() == compiledQuery,
+                    search == null ? 0 : search.extensions().size());
+            return null;
+        }
         Object version = slotResolverVersion.get();
         if (search != highlightCacheSearch || version != highlightCacheVersion) {
             HIGHLIGHT_CACHE.clear();
@@ -178,6 +184,7 @@ public final class EmiHooks {
             if (pass == null) {
                 pass = matches(search, item);
                 HIGHLIGHT_CACHE.put(item, pass);
+                Diag.log(13, "Highlight: '{}' -> {}", item.getHoverName().getString(), pass ? "match" : "dim");
             }
             out.merge(EmiStack.of(item), pass, Boolean::logicalOr);
         }

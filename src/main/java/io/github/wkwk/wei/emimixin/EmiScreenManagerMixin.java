@@ -44,6 +44,7 @@ public abstract class EmiScreenManagerMixin implements WeiHooked {
     @Redirect(method = "renderSlotOverlays", at = @At(value = "INVOKE",
             target = "Ldev/emi/emi/search/EmiSearch$CompiledQuery;test(Ldev/emi/emi/api/stack/EmiStack;)Z"))
     private static boolean wei$test(EmiSearch.CompiledQuery query, EmiStack stack) {
+        EmiHooks.mark("highlightTest");
         if (!query.test(stack)) return false;
         Map<EmiStack, Boolean> results = wei$highlight;
         return results == null || results.getOrDefault(stack, false);
